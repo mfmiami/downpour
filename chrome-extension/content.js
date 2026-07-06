@@ -305,27 +305,37 @@ function formatDirectUrl(format) {
   return params.url || null;
 }
 
-function pickYoutubeStream(streamingData) {
+function pickYoutubeStream(streamingData, quality) {
   if (!streamingData) return null;
-
-  if (streamingData.hlsManifestUrl) {
-    return { kind: "stream", url: streamingData.hlsManifestUrl, source: "hls" };
-  }
 
   const progressive = (streamingData.formats || [])
     .map((f) => ({ f, url: formatDirectUrl(f) }))
     .filter((x) => x.url && (x.f.mimeType || "").includes("video"))
     .sort((a, b) => (b.f.height || b.f.qualityOrdinal || 0) - (a.f.height || a.f.qualityOrdinal || 0));
-  if (progressive[0]) {
-    return { kind: "direct", url: progressive[0].url, source: "progressive" };
+  let progPick = progressive;
+  if (quality === "normal") {
+    const at720 = progressive.filter((x) => (x.f.height || x.f.qualityOrdinal || 0) <= 720);
+    if (at720.length) progPick = at720;
+  }
+  if (progPick[0]) {
+    return { kind: "direct", url: progPick[0].url, source: "progressive" };
+  }
+
+  if (streamingData.hlsManifestUrl) {
+    return { kind: "stream", url: streamingData.hlsManifestUrl, source: "hls" };
   }
 
   const adaptiveVideo = (streamingData.adaptiveFormats || [])
     .map((f) => ({ f, url: formatDirectUrl(f) }))
     .filter((x) => x.url && (x.f.mimeType || "").includes("video") && !(x.f.mimeType || "").includes("audio"))
     .sort((a, b) => (b.f.height || b.f.qualityOrdinal || 0) - (a.f.height || a.f.qualityOrdinal || 0));
-  if (adaptiveVideo[0]) {
-    return { kind: "direct", url: adaptiveVideo[0].url, source: "adaptive-video" };
+  let adaptPick = adaptiveVideo;
+  if (quality === "normal") {
+    const at720 = adaptiveVideo.filter((x) => (x.f.height || x.f.qualityOrdinal || 0) <= 720);
+    if (at720.length) adaptPick = at720;
+  }
+  if (adaptPick[0]) {
+    return { kind: "direct", url: adaptPick[0].url, source: "adaptive-video" };
   }
 
   if (streamingData.dashManifestUrl) {
@@ -333,6 +343,37 @@ function pickYoutubeStream(streamingData) {
   }
 
   return null;
+}
+
+function collectYoutubeAlternates(streamingData, primary, quality) {
+  const alternates = [];
+  const seen = new Set(primary && primary.url ? [primary.url] : []);
+  const add = (item) => {
+    if (!item || !item.url || seen.has(item.url)) return;
+    seen.add(item.url);
+    alternates.push(item);
+  };
+  if (streamingData.hlsManifestUrl) {
+    add({ kind: "stream", url: streamingData.hlsManifestUrl, source: "hls" });
+  }
+  for (const f of streamingData.formats || []) {
+    const url = formatDirectUrl(f);
+    if (url && (f.mimeType || "").includes("video")) {
+      add({ kind: "direct", url, source: "progressive" });
+    }
+  }
+  for (const f of streamingData.adaptiveFormats || []) {
+    const url = formatDirectUrl(f);
+    if (url && (f.mimeType || "").includes("video") && !(f.mimeType || "").includes("audio")) {
+      if (quality !== "normal" || (f.height || f.qualityOrdinal || 0) <= 720) {
+        add({ kind: "direct", url, source: "adaptive-video" });
+      }
+    }
+  }
+  if (streamingData.dashManifestUrl) {
+    add({ kind: "stream", url: streamingData.dashManifestUrl, source: "dash" });
+  }
+  return alternates;
 }
 
 function tabFetchBase64(bytes) {
@@ -347,7 +388,7 @@ function tabFetchBase64(bytes) {
 function tabFetchHeaders(url) {
   const headers = {};
   if (/googlevideo\.com/i.test(url)) {
-    headers.Referer = "https://www.youtube.com/";
+    headers.Referer = isYoutubePage(location.href) ? location.href : "https://www.youtube.com/";
     headers.Origin = "https://www.youtube.com";
   } else if (/cdninstagram\.com|fbcdn\.net/i.test(url)) {
     headers.Referer = "https://www.instagram.com/";
@@ -438,9 +479,10 @@ function scrapeVideoplaybackFromPage() {
   return matches.sort((a, b) => b.length - a.length)[0];
 }
 
-async function getYoutubeStreams() {
+async function getYoutubeStreams(options) {
+  const quality = (options && options.quality) || "normal";
   let player = await readYtInitialPlayerResponse();
-  if (!player || !player.streamingData || !pickYoutubeStream(player.streamingData)) {
+  if (!player || !player.streamingData || !pickYoutubeStream(player.streamingData, quality)) {
     const videoId = youtubeVideoId(window.location.href);
     if (videoId) player = await fetchInnertubePlayer(videoId);
   }
@@ -451,11 +493,16 @@ async function getYoutubeStreams() {
     if (player.playabilityStatus?.status && player.playabilityStatus.status !== "OK") {
       return { error: player.playabilityStatus.reason || "Video is not playable." };
     }
-    const picked = player.streamingData && pickYoutubeStream(player.streamingData);
-    if (picked) return picked;
+    const picked = player.streamingData && pickYoutubeStream(player.streamingData, quality);
+    if (picked) {
+      return {
+        ...picked,
+        alternates: collectYoutubeAlternates(player.streamingData, picked, quality)
+      };
+    }
   }
   const scraped = scrapeVideoplaybackFromPage();
-  if (scraped) return { kind: "direct", url: scraped, source: "page" };
+  if (scraped) return { kind: "direct", url: scraped, source: "page", alternates: [] };
   return { error: "No stream captured yet — play the video for a few seconds, then try again." };
 }
 
@@ -500,7 +547,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     return true;
   }
   if (request.action === "getYoutubeStreams") {
-    getYoutubeStreams().then(sendResponse);
+    getYoutubeStreams({ quality: request.quality }).then(sendResponse);
     return true;
   }
   if (request.action === "tabFetch") {
