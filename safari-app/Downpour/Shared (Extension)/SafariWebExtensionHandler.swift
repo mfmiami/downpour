@@ -30,6 +30,7 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             case "youtubeBegin":    responsePayload = youtubeBegin(dict)
             case "youtubeStatus":   responsePayload = youtubeStatus(dict)
             case "youtubeAbort":    responsePayload = youtubeAbort(dict)
+            case "downloadUrl":     responsePayload = downloadUrl(dict)
             default:                responsePayload = ["echo": message ?? ""]
             }
         } else {
@@ -182,5 +183,72 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         guard let token = dict["token"] as? String else { return ["error": "No token"] }
         youtubeManager.requestCancellation(token: token)
         return ["ok": true]
+    }
+
+    /// Download a URL with an explicit Referer (required by erome CDN) and save to Downloads.
+    private func downloadUrl(_ dict: [String: Any]) -> [String: Any] {
+        guard let urlStr = dict["url"] as? String, let url = URL(string: urlStr) else {
+            return ["error": "No URL provided"]
+        }
+        guard let downloads = downloadsDir() else {
+            return ["error": "Could not locate Downloads folder"]
+        }
+
+        let filename = sanitize(dict["filename"] as? String ?? "video.mp4")
+        let referer = dict["referer"] as? String ?? "https://www.erome.com/"
+
+        var request = URLRequest(url: url)
+        request.setValue(referer, forHTTPHeaderField: "Referer")
+        request.setValue(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+            forHTTPHeaderField: "User-Agent"
+        )
+
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 120
+        config.timeoutIntervalForResource = 3600
+        let session = URLSession(configuration: config)
+
+        let sem = DispatchSemaphore(value: 0)
+        var payload: [String: Any] = ["error": "Download failed"]
+
+        let task = session.downloadTask(with: request) { tempURL, response, error in
+            defer { sem.signal() }
+            if let error = error {
+                payload = ["error": error.localizedDescription]
+                return
+            }
+            guard let http = response as? HTTPURLResponse else {
+                payload = ["error": "Invalid response"]
+                return
+            }
+            guard (200...299).contains(http.statusCode) else {
+                payload = ["error": "HTTP \(http.statusCode)"]
+                return
+            }
+            guard let tempURL = tempURL else {
+                payload = ["error": "No download data"]
+                return
+            }
+            let dest = self.uniqueURL(in: downloads, filename: filename)
+            do {
+                if FileManager.default.fileExists(atPath: dest.path) {
+                    try FileManager.default.removeItem(at: dest)
+                }
+                try FileManager.default.moveItem(at: tempURL, to: dest)
+                let bytes = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int) ?? 0
+                os_log(.default, "Downloaded media to %@", dest.path)
+                payload = ["ok": true, "path": dest.path, "bytes": bytes]
+            } catch {
+                try? FileManager.default.removeItem(at: tempURL)
+                payload = ["error": "Save failed: \(error.localizedDescription)"]
+            }
+        }
+        task.resume()
+        if sem.wait(timeout: .now() + 3700) == .timedOut {
+            task.cancel()
+            return ["error": "Download timed out"]
+        }
+        return payload
     }
 }

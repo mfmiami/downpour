@@ -629,7 +629,12 @@ async function fetchViaTab(tabId, url, mode) {
 
 async function fetchText(url, signal, tabId, forceTab) {
   if (tabId != null && (forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url))) {
-    try { return await fetchViaTab(tabId, url, "text"); } catch (e) { /* fall through */ }
+    try { return await fetchViaTab(tabId, url, "text"); } catch (e) {
+      if (isEromeCdn(url)) throw e;
+    }
+  }
+  if (isEromeCdn(url)) {
+    throw new Error("Stay on the erome album page and try again");
   }
   const r = await fetch(url, fetchInit(url, signal));
   if (!r.ok) throw new Error(`HTTP ${r.status} fetching manifest`);
@@ -638,7 +643,12 @@ async function fetchText(url, signal, tabId, forceTab) {
 
 async function fetchBytes(url, signal, tabId, forceTab) {
   if (tabId != null && (forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url))) {
-    try { return await fetchViaTab(tabId, url, "bytes"); } catch (e) { /* fall through */ }
+    try { return await fetchViaTab(tabId, url, "bytes"); } catch (e) {
+      if (isEromeCdn(url)) throw e;
+    }
+  }
+  if (isEromeCdn(url)) {
+    throw new Error("Stay on the erome album page and try again");
   }
   const r = await fetch(url, fetchInit(url, signal));
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -654,7 +664,12 @@ async function fetchBytesWithProgress(url, job, signal) {
     try {
       update(job, { message: "downloading via page…" });
       return await fetchViaTab(job.tabId, url, "bytes");
-    } catch (e) { /* fall through */ }
+    } catch (e) {
+      if (isEromeCdn(url)) throw e;
+    }
+  }
+  if (isEromeCdn(url)) {
+    throw new Error("Stay on the erome album page and try again");
   }
   const r = await fetch(url, fetchInit(url, signal));
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -947,7 +962,30 @@ function filenameWithImageExtension(filename, bytes) {
   return `${base}.${ext}`;
 }
 
+async function runEromeNativeDownload(job) {
+  try {
+    ensureNotCancelled(job);
+    assertFetchable(job.url);
+    update(job, { state: "running", progress: 0, message: "downloading via native…" });
+    const referer = eromeRefererForCdn(job.url);
+    const resp = await sendNative({
+      type: "downloadUrl",
+      url: job.url,
+      filename: job.filename,
+      referer
+    });
+    if (!resp || !resp.ok) throw new Error((resp && resp.error) || "native download failed");
+    update(job, { state: "done", progress: 100, message: `Saved → ${resp.path}`, path: resp.path });
+  } catch (e) {
+    if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
+    else update(job, { state: "error", message: `ERROR: ${e.message}` });
+  } finally {
+    delete controllers[job.id];
+  }
+}
+
 async function runDirectJob(job) {
+  if (isEromeCdn(job.url)) return runEromeNativeDownload(job);
   const ctrl = controllers[job.id];
   const signal = ctrl && ctrl.signal;
   try {
