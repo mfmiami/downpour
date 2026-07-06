@@ -36,9 +36,11 @@
 | Path | Purpose |
 |------|---------|
 | `/` | Extension source (Manifest V3 JS) |
+| `chrome-extension/` | Chrome port (load unpacked; see `chrome-extension/README.md`) |
 | `releases/` | Installer DMG output (`Downpour.dmg`) |
 | `safari-app/` | macOS Xcode project (synced before publish) |
 | `sync-to-safari.sh` | Copy extension JS → Xcode `Resources/` |
+| `scripts/sync-chrome.sh` | Copy extension JS → `chrome-extension/` |
 | `scripts/build-installer.sh` | Build app and package the DMG |
 | `scripts/install-downpour.sh` | One-click install (used inside the DMG) |
 | `scripts/publish-sync.sh` | Refresh `safari-app/` from `../Downpour-Safari/` |
