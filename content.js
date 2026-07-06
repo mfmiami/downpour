@@ -384,7 +384,70 @@ function tabFetchUsesCredentials(url) {
     || DownpourPlatforms.isTikTokCdnHost(url);
 }
 
+function needsPageContextFetch(url) {
+  return typeof DownpourPlatforms !== "undefined" && DownpourPlatforms.isEromeCdn(url);
+}
+
+let pageFetchSeq = 0;
+const pageFetchWaiters = new Map();
+
+function ensurePageFetchBridge() {
+  if (document.documentElement.dataset.vsdPageFetch) return;
+  document.documentElement.dataset.vsdPageFetch = "1";
+  window.addEventListener("message", (event) => {
+    if (event.source !== window || !event.data || event.data.type !== "VSD_PAGE_FETCH_RESULT") return;
+    const waiter = pageFetchWaiters.get(event.data.id);
+    if (!waiter) return;
+    pageFetchWaiters.delete(event.data.id);
+    waiter(event.data);
+  });
+}
+
+function pageProxyFetch(url, mode) {
+  ensurePageFetchBridge();
+  return new Promise((resolve, reject) => {
+    const id = `pf_${++pageFetchSeq}_${Date.now()}`;
+    const timer = setTimeout(() => {
+      pageFetchWaiters.delete(id);
+      reject(new Error("page fetch timeout"));
+    }, 300000);
+    pageFetchWaiters.set(id, (data) => {
+      clearTimeout(timer);
+      if (data.error) {
+        reject(new Error(data.error));
+        return;
+      }
+      if (mode === "text") resolve({ text: data.text });
+      else resolve({ data: data.data, length: data.length });
+    });
+    const script = document.createElement("script");
+    script.textContent = `(function(){
+      var id=${JSON.stringify(id)};
+      var url=${JSON.stringify(url)};
+      var wantText=${mode === "text" ? "true" : "false"};
+      fetch(url,{credentials:"omit"})
+        .then(function(r){
+          if(!r.ok){window.postMessage({type:"VSD_PAGE_FETCH_RESULT",id:id,error:"HTTP "+r.status},"*");return;}
+          if(wantText){return r.text().then(function(text){
+            window.postMessage({type:"VSD_PAGE_FETCH_RESULT",id:id,text:text},"*");
+          });}
+          return r.arrayBuffer().then(function(buf){
+            var bytes=new Uint8Array(buf),binary="",CHUNK=0x8000;
+            for(var i=0;i<bytes.length;i+=CHUNK){binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+CHUNK));}
+            window.postMessage({type:"VSD_PAGE_FETCH_RESULT",id:id,data:btoa(binary),length:bytes.length},"*");
+          });
+        })
+        .catch(function(e){window.postMessage({type:"VSD_PAGE_FETCH_RESULT",id:id,error:e.message||String(e)},"*");});
+    })();`;
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
+  });
+}
+
 async function tabProxyFetch(url, mode) {
+  if (needsPageContextFetch(url)) {
+    return pageProxyFetch(url, mode);
+  }
   const resp = await fetch(url, {
     credentials: tabFetchUsesCredentials(url) ? "include" : "omit",
     headers: tabFetchHeaders(url)
