@@ -1,8 +1,37 @@
 # Downpour
 
-Save videos and images from the web with a Safari extension — hover overlay on Instagram, TikTok, X, and generic sites, plus a popup for YouTube and detected streams.
+Save videos and images from the web with a Safari extension — hover overlays on Instagram, TikTok, X, and generic sites, plus a popup for YouTube and detected streams.
 
-## Repository layout
+**Current version:** 2.12.3
+
+## Install (macOS)
+
+### From a release DMG
+
+1. Open `Downpour-<version>.dmg`
+2. Double-click **`Install Downpour.command`**
+3. In Safari, go to **Settings → Extensions** and turn on **Downpour**
+4. Allow the extension on the sites you use
+
+Manual alternative: drag **Downpour.app** onto the **Applications** folder, open it once, then enable it in Safari.
+
+**First launch:** macOS may block unsigned builds. Right-click **Downpour.app → Open → Open** to approve it once.
+
+### After installing
+
+- Quit and reopen Safari if the extension does not appear
+- Open **Downpour** from Applications when social downloads need the bundled yt-dlp helper
+
+## Features
+
+- Hover **Save** button on social feeds (Instagram, TikTok, X) and generic video pages
+- Popup lists detected streams and starts YouTube downloads
+- Parallel downloads with per-video progress
+- Instagram image posts save with the correct file extension
+
+## Development
+
+### Repository layout
 
 | Path | Purpose |
 |------|---------|
@@ -10,18 +39,19 @@ Save videos and images from the web with a Safari extension — hover overlay on
 | `safari-app/` | macOS Safari wrapper (Xcode project, synced before publish) |
 | `sync-to-safari.sh` | Copy extension JS → live Xcode `Resources/` |
 | `scripts/publish-sync.sh` | Refresh `safari-app/` from your local Xcode project |
-| `scripts/bootstrap-mac-deps.sh` | Install bundled Python + ffmpeg after clone |
+| `scripts/bootstrap-mac-deps.sh` | Restore bundled Python + ffmpeg after clone |
+| `scripts/build-installer.sh` | Build app and package a distributable `.dmg` |
+| `scripts/install-downpour.sh` | One-click install logic (used inside the DMG) |
 
-During day-to-day development you may keep the Xcode project at  
-`../VideoStreamDownloader-Safari/` (sibling folder). Run `sync-to-safari.sh` after editing extension files.
+Day-to-day development can use a sibling Xcode project at `../VideoStreamDownloader-Safari/`. Run `sync-to-safari.sh` after editing extension files.
 
-## Build (macOS)
+### Build from source
 
 ```bash
 # 1. Sync extension source into your Xcode project
 ./sync-to-safari.sh
 
-# 2. Build (expects sibling VideoStreamDownloader-Safari, or use safari-app/)
+# 2. Build Release (expects sibling VideoStreamDownloader-Safari)
 ../VideoStreamDownloader-Safari/build-macos.sh
 ```
 
@@ -32,47 +62,47 @@ After cloning from GitHub:
 open safari-app/Video\ Stream\ Downloader/Video\ Stream\ Downloader.xcodeproj
 ```
 
-## Tests
+Install a local build to `/Applications`:
+
+```bash
+INSTALLER_APP="$(find ~/Library/Developer/Xcode/DerivedData -path '*/Release/Downpour.app' | head -1)" \
+  ./scripts/install-downpour.sh
+```
+
+### Tests
 
 ```bash
 node test/run-tests.mjs
 ```
 
-## Publish to GitHub (first time)
+### Build installer DMG
 
-1. **Create an empty repo** on [github.com/new](https://github.com/new)  
-   - Name: `downpour` (or your choice)  
-   - Private recommended (video downloader + cookie access)  
-   - Do **not** add README, .gitignore, or license (we have them locally)
+```bash
+./scripts/build-installer.sh
+```
 
-2. **Sync the Safari wrapper into this repo** (excludes large binaries):
+Output: `dist/Downpour-<version>.dmg` (~150 MB installed, ~80 MB compressed).
 
-   ```bash
-   ./scripts/publish-sync.sh
-   ```
+Skip the Xcode rebuild when you already have a built app:
 
-3. **Commit and push** (replace `YOUR_USER` and repo name):
+```bash
+SKIP_BUILD=1 INSTALLER_APP=/Applications/Downpour.app ./scripts/build-installer.sh
+```
 
-   ```bash
-   git add -A
-   git status   # review — python/ffmpeg should not appear
-   git commit -m "Initial commit: Downpour v2.12.3"
-   git branch -M main
-   git remote add origin git@github.com:YOUR_USER/downpour.git
-   git push -u origin main
-   ```
+For wider distribution, sign and notarize the app in Xcode before packaging.
 
-   HTTPS alternative:
+### Publish to GitHub
 
-   ```bash
-   git remote add origin https://github.com/YOUR_USER/downpour.git
-   git push -u origin main
-   ```
+Before committing changes that touch the Safari wrapper:
 
-4. **GitHub auth** — if push asks for credentials:
-   - SSH: add your public key in GitHub → Settings → SSH keys, use `git@github.com:...` remote
-   - HTTPS: use a [Personal Access Token](https://github.com/settings/tokens) as the password
+```bash
+./scripts/publish-sync.sh
+git add -A
+git status   # python/ffmpeg should not appear
+git commit -m "Your message"
+git push
+```
 
 ## Legal note
 
-Only download content you have the right to save. Social downloads may read Safari cookies via yt-dlp. Not affiliated with YouTube, TikTok, Instagram, or X.
+Only download content you have the right to save. Social downloads may read Safari cookies via yt-dlp. Downpour is not affiliated with YouTube, TikTok, Instagram, or X.

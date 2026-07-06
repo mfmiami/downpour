@@ -36,3 +36,6 @@ safari-app/**/Resources/ffmpeg/
 
 # Archives
 *.xcarchive
+
+# Installer output
+dist/
