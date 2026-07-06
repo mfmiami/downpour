@@ -16,12 +16,12 @@
   const activeMedia = new Set();
   const finishTimers = new WeakMap();
 
-  const RING_RADIUS = 18;
+  const RING_RADIUS = 15;
   const RING_CIRC = 2 * Math.PI * RING_RADIUS;
   const PROGRESS_RING =
-    `<svg class="downpour-ring" viewBox="0 0 44 44" width="44" height="44" aria-hidden="true">` +
-    `<circle class="downpour-ring-track" cx="22" cy="22" r="${RING_RADIUS}" fill="none" stroke-width="3"/>` +
-    `<circle class="downpour-ring-fill" cx="22" cy="22" r="${RING_RADIUS}" fill="none" stroke-width="3" stroke-linecap="round"/>` +
+    `<svg class="downpour-ring" viewBox="0 0 38 38" width="38" height="38" aria-hidden="true">` +
+    `<circle class="downpour-ring-track" cx="19" cy="19" r="${RING_RADIUS}" fill="none" stroke-width="2.5"/>` +
+    `<circle class="downpour-ring-fill" cx="19" cy="19" r="${RING_RADIUS}" fill="none" stroke-width="2.5" stroke-linecap="round"/>` +
     `</svg>`;
 
   const ICONS = {
@@ -66,14 +66,16 @@
   border-radius: 50%;
   cursor: pointer;
   color: #fff;
-  background: rgba(0, 0, 0, 0.55);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
-  backdrop-filter: blur(8px) saturate(140%);
+  background: rgba(12, 12, 14, 0.72);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
   opacity: 0;
   transform: translateY(-4px) scale(0.9);
   pointer-events: none;
-  transition: opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 #${BTN_ID}.downpour-visible {
@@ -82,32 +84,49 @@
   pointer-events: auto;
 }
 #${BTN_ID}:hover {
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(18, 18, 22, 0.88);
   transform: translateY(0) scale(1.06);
 }
 #${BTN_ID}:active { transform: translateY(0) scale(0.96); }
-#${BTN_ID} svg { display: block; }
-#${BTN_ID}.downpour-success { background: rgba(34, 160, 90, 0.9); opacity: 1; }
-#${BTN_ID}.downpour-error { background: rgba(214, 41, 75, 0.9); opacity: 1; }
-#${BTN_ID}.downpour-loading { background: rgba(0, 0, 0, 0.62); opacity: 1; }
+#${BTN_ID} .downpour-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+#${BTN_ID}.downpour-success {
+  opacity: 1;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 0 0 1.5px rgba(52, 211, 153, 0.7);
+}
+#${BTN_ID}.downpour-success .downpour-icon { color: #34d399; }
+#${BTN_ID}.downpour-error {
+  opacity: 1;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 0 0 1.5px rgba(248, 113, 113, 0.75);
+}
+#${BTN_ID}.downpour-error .downpour-icon { color: #f87171; }
+#${BTN_ID}.downpour-loading { opacity: 1; }
 #${BTN_ID}.downpour-cancellable { cursor: pointer; }
-#${BTN_ID}.downpour-cancellable:hover { background: rgba(214, 41, 75, 0.82); }
+#${BTN_ID}.downpour-cancellable:hover {
+  background: rgba(28, 16, 20, 0.9);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 0 0 1.5px rgba(248, 113, 113, 0.55);
+}
 #${BTN_ID} .downpour-ring {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 44px;
-  height: 44px;
-  margin: -22px 0 0 -22px;
+  inset: 0;
+  width: 38px;
+  height: 38px;
   transform: rotate(-90deg);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.16s ease;
 }
-#${BTN_ID}.downpour-has-progress .downpour-ring { opacity: 1; }
-.downpour-ring-track { stroke: rgba(255, 255, 255, 0.22); }
+#${BTN_ID}:not(.downpour-has-progress) .downpour-ring { display: none; }
+#${BTN_ID}.downpour-has-progress .downpour-ring {
+  display: block;
+  opacity: 1;
+}
+.downpour-ring-track { stroke: rgba(255, 255, 255, 0.14); }
 .downpour-ring-fill {
-  stroke: #5eead4;
+  stroke: #2dd4bf;
   stroke-dasharray: ${RING_CIRC};
   stroke-dashoffset: ${RING_CIRC};
   transition: stroke-dashoffset 0.25s ease;
@@ -126,6 +145,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+#${BTN_ID} .downpour-pct {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #e2e8f0;
 }
 .downpour-spinner {
   width: 16px;
@@ -253,7 +279,10 @@
       } else {
         btn.classList.add("downpour-cancellable", "downpour-has-progress");
         updateProgressRing(progressPct);
-        setButtonIcon(ICONS.cancel);
+        const showPct = typeof progressPct === "number" && progressPct > 0;
+        setButtonIcon(showPct
+          ? `<span class="downpour-pct">${progressPct}</span>`
+          : ICONS.cancel);
         btn.setAttribute("aria-label", "Cancel download");
         const pctLabel = typeof progressPct === "number" && progressPct > 0 ? `${progressPct}%` : null;
         const detail = pctLabel || (title && title !== "Saving…" ? title : null);
@@ -261,16 +290,20 @@
       }
     } else if (state === "success") {
       btn.classList.add("downpour-success");
+      updateProgressRing(null);
       setButtonIcon(ICONS.check);
+      btn.setAttribute("aria-label", "Saved");
       btn.title = title || "Saved";
     } else if (state === "error") {
+      updateProgressRing(null);
       btn.classList.add("downpour-error");
       setButtonIcon(ICONS.error);
       btn.title = title || "Save failed";
     } else {
+      updateProgressRing(null);
       setButtonIcon(ICONS.download);
       btn.setAttribute("aria-label", "Save media");
-      if (title) btn.title = title;
+      btn.title = title || "Save";
     }
   }
 
