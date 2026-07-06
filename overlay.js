@@ -16,6 +16,14 @@
   const activeMedia = new Set();
   const finishTimers = new WeakMap();
 
+  const RING_RADIUS = 18;
+  const RING_CIRC = 2 * Math.PI * RING_RADIUS;
+  const PROGRESS_RING =
+    `<svg class="downpour-ring" viewBox="0 0 44 44" width="44" height="44" aria-hidden="true">` +
+    `<circle class="downpour-ring-track" cx="22" cy="22" r="${RING_RADIUS}" fill="none" stroke-width="3"/>` +
+    `<circle class="downpour-ring-fill" cx="22" cy="22" r="${RING_RADIUS}" fill="none" stroke-width="3" stroke-linecap="round"/>` +
+    `</svg>`;
+
   const ICONS = {
     download:
       '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3a1 1 0 0 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42l2.3 2.3V4a1 1 0 0 1 1-1Zm-7 14a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z"/></svg>',
@@ -84,6 +92,41 @@
 #${BTN_ID}.downpour-loading { background: rgba(0, 0, 0, 0.62); opacity: 1; }
 #${BTN_ID}.downpour-cancellable { cursor: pointer; }
 #${BTN_ID}.downpour-cancellable:hover { background: rgba(214, 41, 75, 0.82); }
+#${BTN_ID} .downpour-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  transform: rotate(-90deg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+#${BTN_ID}.downpour-has-progress .downpour-ring { opacity: 1; }
+.downpour-ring-track { stroke: rgba(255, 255, 255, 0.22); }
+.downpour-ring-fill {
+  stroke: #5eead4;
+  stroke-dasharray: ${RING_CIRC};
+  stroke-dashoffset: ${RING_CIRC};
+  transition: stroke-dashoffset 0.25s ease;
+}
+#${BTN_ID}.downpour-progress-indeterminate .downpour-ring-fill {
+  animation: downpour-ring-indeterminate 1.15s ease-in-out infinite;
+}
+@keyframes downpour-ring-indeterminate {
+  0% { stroke-dashoffset: ${RING_CIRC * 0.85}; }
+  50% { stroke-dashoffset: ${RING_CIRC * 0.25}; }
+  100% { stroke-dashoffset: ${RING_CIRC * 0.85}; }
+}
+#${BTN_ID} .downpour-icon {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .downpour-spinner {
   width: 16px;
   height: 16px;
@@ -168,36 +211,64 @@
     btn.id = BTN_ID;
     btn.type = "button";
     btn.setAttribute("aria-label", "Save media");
-    btn.innerHTML = ICONS.download;
+    btn.innerHTML = `${PROGRESS_RING}<span class="downpour-icon">${ICONS.download}</span>`;
     btn.addEventListener("click", onDownloadClick);
     btn.addEventListener("mouseenter", () => clearTimeout(hideTimer));
     document.body.appendChild(btn);
   }
 
-  function setState(state, title) {
+  function setButtonIcon(html) {
     if (!btn) return;
-    btn.classList.remove("downpour-loading", "downpour-cancellable", "downpour-success", "downpour-error");
+    const icon = btn.querySelector(".downpour-icon");
+    if (icon) icon.innerHTML = html;
+  }
+
+  function updateProgressRing(progressPct) {
+    if (!btn) return;
+    const fill = btn.querySelector(".downpour-ring-fill");
+    if (!fill) return;
+    const indeterminate = progressPct == null || progressPct <= 0;
+    btn.classList.toggle("downpour-progress-indeterminate", indeterminate);
+    if (!indeterminate) {
+      const clamped = Math.max(0, Math.min(100, progressPct));
+      fill.style.strokeDashoffset = String(RING_CIRC * (1 - clamped / 100));
+    } else {
+      fill.style.strokeDashoffset = "";
+    }
+  }
+
+  function setState(state, title, progressPct) {
+    if (!btn) return;
+    btn.classList.remove(
+      "downpour-loading", "downpour-cancellable", "downpour-success", "downpour-error",
+      "downpour-has-progress", "downpour-progress-indeterminate"
+    );
     if (state === "loading") {
       btn.classList.add("downpour-loading");
       const cancelling = /cancell/i.test(title || "");
       if (cancelling) {
-        btn.innerHTML = '<span class="downpour-spinner"></span>';
+        setButtonIcon('<span class="downpour-spinner"></span>');
         btn.setAttribute("aria-label", "Cancelling download");
         btn.title = title || "Cancelling…";
       } else {
-        btn.classList.add("downpour-cancellable");
-        btn.innerHTML = ICONS.cancel;
+        btn.classList.add("downpour-cancellable", "downpour-has-progress");
+        updateProgressRing(progressPct);
+        setButtonIcon(ICONS.cancel);
         btn.setAttribute("aria-label", "Cancel download");
-        btn.title = title && title !== "Saving…" ? `${title} — click to cancel` : "Click to cancel";
+        const pctLabel = typeof progressPct === "number" && progressPct > 0 ? `${progressPct}%` : null;
+        const detail = pctLabel || (title && title !== "Saving…" ? title : null);
+        btn.title = detail ? `${detail} — click to cancel` : "Click to cancel";
       }
     } else if (state === "success") {
       btn.classList.add("downpour-success");
-      btn.innerHTML = ICONS.check;
+      setButtonIcon(ICONS.check);
+      btn.title = title || "Saved";
     } else if (state === "error") {
       btn.classList.add("downpour-error");
-      btn.innerHTML = ICONS.error;
+      setButtonIcon(ICONS.error);
+      btn.title = title || "Save failed";
     } else {
-      btn.innerHTML = ICONS.download;
+      setButtonIcon(ICONS.download);
       btn.setAttribute("aria-label", "Save media");
       if (title) btn.title = title;
     }
@@ -214,6 +285,7 @@
       cancelRequested: false,
       status: "idle",
       progress: "",
+      progressPct: null,
       handledFailureId: null,
       ytDlpTried: false,
       twitterM3u8Tried: false
@@ -268,11 +340,11 @@
       return;
     }
     if (ref.status === "starting") {
-      setState("loading", "Saving…");
+      setState("loading", "Saving…", null);
       return;
     }
     if (ref.status === "running") {
-      setState("loading", ref.progress || "Saving…");
+      setState("loading", ref.progress || "Saving…", ref.progressPct);
       return;
     }
     if (ref.status === "success") setState("success", "Saved");
@@ -317,6 +389,7 @@
       ref.altUrls = [];
       ref.altIndex = 0;
       ref.progress = "";
+      ref.progressPct = null;
       ref.handledFailureId = null;
       ref.ytDlpTried = false;
       ref.twitterM3u8Tried = false;
@@ -931,7 +1004,10 @@
     } else if (job.state === "running" || job.state === "saving" || job.state === "queued") {
       if (ref.cancelRequested) return;
       ref.status = "running";
-      ref.progress = job.progress ? `${job.progress}%` : "Saving…";
+      ref.progressPct = typeof job.progress === "number" ? job.progress : null;
+      ref.progress = ref.progressPct != null && ref.progressPct > 0
+        ? `${ref.progressPct}%`
+        : (job.message || "Saving…");
       reflectMediaState(media);
     }
   }

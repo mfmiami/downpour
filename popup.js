@@ -41,7 +41,16 @@ window.addEventListener("unhandledrejection", (e) => log("PROMISE REJECTION:", (
 const buttonsByUrl = new Map();
 const cancelButtonsByUrl = new Map();
 const qualitySelectsByUrl = new Map();
+const progressByUrl = new Map();
 const jobIdByUrl = new Map();
+
+function shortJobMessage(message) {
+  if (!message) return "";
+  return String(message)
+    .replace(/^ERROR:\s*/i, "")
+    .replace(/^Saved →\s*/i, "")
+    .slice(0, 72);
+}
 
 function setBtnVariant(btn, variant) {
   btn.classList.remove("btn-primary", "btn-success", "btn-warning", "btn-danger", "btn-ghost");
@@ -58,6 +67,24 @@ function applyJobState(job) {
 
   const inProgress = job.state === "queued" || job.state === "running" || job.state === "saving";
   if (cancelBtn) cancelBtn.style.display = inProgress ? "inline-flex" : "none";
+
+  const progressEl = progressByUrl.get(job.url);
+  if (progressEl) {
+    progressEl.container.classList.toggle("active", inProgress);
+    if (inProgress) {
+      const pct = typeof job.progress === "number" ? job.progress : null;
+      const known = pct != null && pct > 0;
+      progressEl.bar.classList.toggle("indeterminate", !known);
+      if (known) {
+        progressEl.bar.style.width = `${Math.min(100, pct)}%`;
+        const detail = shortJobMessage(job.message);
+        progressEl.label.textContent = detail ? `${pct}% — ${detail}` : `${pct}%`;
+      } else {
+        progressEl.bar.style.width = "";
+        progressEl.label.textContent = shortJobMessage(job.message) || "Downloading…";
+      }
+    }
+  }
 
   if (job.state === "done") {
     btn.textContent = "Done";
@@ -255,6 +282,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     buttonsByUrl.clear();
     cancelButtonsByUrl.clear();
     qualitySelectsByUrl.clear();
+    progressByUrl.clear();
 
     const socialPlatform = tabUrl ? socialOverlayPlatform(tabUrl) : null;
     if (socialPlatform) {
@@ -321,6 +349,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         labelDiv.textContent = url;
         labelDiv.title = url;
       }
+
+      const progressWrap = document.createElement("div");
+      progressWrap.className = "download-progress";
+      const progressTrack = document.createElement("div");
+      progressTrack.className = "download-progress-track";
+      const progressBar = document.createElement("div");
+      progressBar.className = "download-progress-bar";
+      progressTrack.appendChild(progressBar);
+      const progressLabel = document.createElement("div");
+      progressLabel.className = "download-progress-label";
+      progressWrap.appendChild(progressTrack);
+      progressWrap.appendChild(progressLabel);
+      progressByUrl.set(url, { container: progressWrap, bar: progressBar, label: progressLabel });
 
       const cardActions = document.createElement("div");
       cardActions.className = "card-actions";
@@ -400,6 +441,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (resp && resp.jobId) jobIdByUrl.set(url, resp.jobId);
           btn.textContent = "Downloading…";
           cancelBtn.style.display = "inline-flex";
+          const progressEl = progressByUrl.get(url);
+          if (progressEl) {
+            progressEl.container.classList.add("active");
+            progressEl.bar.classList.add("indeterminate");
+            progressEl.bar.style.width = "";
+            progressEl.label.textContent = "Queued…";
+          }
         });
       };
 
@@ -408,6 +456,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       li.appendChild(cardTop);
       li.appendChild(labelDiv);
+      li.appendChild(progressWrap);
       li.appendChild(cardActions);
       videoList.appendChild(li);
     });

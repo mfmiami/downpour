@@ -9,6 +9,7 @@ import os.log
 class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
 
     private let youtubeManager = YoutubeJobManager.shared
+    private let nativeDownloadManager = NativeDownloadManager.shared
 
     func beginRequest(with context: NSExtensionContext) {
         let request = context.inputItems.first as? NSExtensionItem
@@ -30,8 +31,10 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             case "youtubeBegin":    responsePayload = youtubeBegin(dict)
             case "youtubeStatus":   responsePayload = youtubeStatus(dict)
             case "youtubeAbort":    responsePayload = youtubeAbort(dict)
-            case "downloadUrl":     responsePayload = downloadUrl(dict)
-            default:                responsePayload = ["echo": message ?? ""]
+            case "downloadUrlBegin":  responsePayload = downloadUrlBegin(dict)
+            case "downloadUrlStatus": responsePayload = downloadUrlStatus(dict)
+            case "downloadUrlAbort":  responsePayload = downloadUrlAbort(dict)
+            default:                  responsePayload = ["echo": message ?? ""]
             }
         } else {
             responsePayload = ["echo": message ?? ""]
@@ -185,70 +188,208 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         return ["ok": true]
     }
 
-    /// Download a URL with an explicit Referer (required by erome CDN) and save to Downloads.
-    private func downloadUrl(_ dict: [String: Any]) -> [String: Any] {
+    private func downloadUrlBegin(_ dict: [String: Any]) -> [String: Any] {
         guard let urlStr = dict["url"] as? String, let url = URL(string: urlStr) else {
             return ["error": "No URL provided"]
         }
         guard let downloads = downloadsDir() else {
             return ["error": "Could not locate Downloads folder"]
         }
-
         let filename = sanitize(dict["filename"] as? String ?? "video.mp4")
         let referer = dict["referer"] as? String ?? "https://www.erome.com/"
-
         var request = URLRequest(url: url)
         request.setValue(referer, forHTTPHeaderField: "Referer")
         request.setValue(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
             forHTTPHeaderField: "User-Agent"
         )
+        let dest = uniqueURL(in: downloads, filename: filename)
+        let token = nativeDownloadManager.begin(request: request, destURL: dest)
+        return ["ok": true, "token": token]
+    }
 
+    private func downloadUrlStatus(_ dict: [String: Any]) -> [String: Any] {
+        guard let token = dict["token"] as? String else { return ["error": "No token"] }
+        guard let payload = nativeDownloadManager.status(token: token) else {
+            return ["error": "Unknown download job"]
+        }
+        if let state = payload["state"] as? String,
+           state == "done" || state == "error" || state == "cancelled" {
+            nativeDownloadManager.remove(token: token)
+        }
+        return payload
+    }
+
+    private func downloadUrlAbort(_ dict: [String: Any]) -> [String: Any] {
+        guard let token = dict["token"] as? String else { return ["error": "No token"] }
+        nativeDownloadManager.abort(token: token)
+        return ["ok": true]
+    }
+}
+
+// MARK: - Native URL downloads with progress (erome CDN, etc.)
+
+final class NativeDownloadManager: NSObject, URLSessionDownloadDelegate {
+    static let shared = NativeDownloadManager()
+
+    private enum State: String {
+        case running, saving, done, error, cancelled
+    }
+
+    private struct Record {
+        var state: State
+        var progress: Int
+        var message: String
+        var path: String?
+        var error: String?
+        var destURL: URL
+        var cancelled: Bool
+    }
+
+    private let lock = NSLock()
+    private var records: [String: Record] = [:]
+    private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 120
         config.timeoutIntervalForResource = 3600
-        let session = URLSession(configuration: config)
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+    }()
 
-        let sem = DispatchSemaphore(value: 0)
-        var payload: [String: Any] = ["error": "Download failed"]
+    private override init() {
+        super.init()
+    }
 
-        let task = session.downloadTask(with: request) { tempURL, response, error in
-            defer { sem.signal() }
-            if let error = error {
-                payload = ["error": error.localizedDescription]
-                return
-            }
-            guard let http = response as? HTTPURLResponse else {
-                payload = ["error": "Invalid response"]
-                return
-            }
-            guard (200...299).contains(http.statusCode) else {
-                payload = ["error": "HTTP \(http.statusCode)"]
-                return
-            }
-            guard let tempURL = tempURL else {
-                payload = ["error": "No download data"]
-                return
-            }
-            let dest = self.uniqueURL(in: downloads, filename: filename)
-            do {
-                if FileManager.default.fileExists(atPath: dest.path) {
-                    try FileManager.default.removeItem(at: dest)
-                }
-                try FileManager.default.moveItem(at: tempURL, to: dest)
-                let bytes = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int) ?? 0
-                os_log(.default, "Downloaded media to %@", dest.path)
-                payload = ["ok": true, "path": dest.path, "bytes": bytes]
-            } catch {
-                try? FileManager.default.removeItem(at: tempURL)
-                payload = ["error": "Save failed: \(error.localizedDescription)"]
-            }
-        }
+    func begin(request: URLRequest, destURL: URL) -> String {
+        let token = UUID().uuidString
+        let task = session.downloadTask(with: request)
+        task.taskDescription = token
+        lock.lock()
+        records[token] = Record(
+            state: .running,
+            progress: 0,
+            message: "downloading…",
+            path: nil,
+            error: nil,
+            destURL: destURL,
+            cancelled: false
+        )
+        lock.unlock()
         task.resume()
-        if sem.wait(timeout: .now() + 3700) == .timedOut {
-            task.cancel()
-            return ["error": "Download timed out"]
-        }
+        return token
+    }
+
+    func status(token: String) -> [String: Any]? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let record = records[token] else { return nil }
+        var payload: [String: Any] = [
+            "ok": true,
+            "state": record.state.rawValue,
+            "progress": record.progress,
+            "message": record.message
+        ]
+        if let path = record.path { payload["path"] = path }
+        if let error = record.error { payload["error"] = error }
         return payload
+    }
+
+    func abort(token: String) {
+        lock.lock()
+        if var record = records[token] {
+            record.cancelled = true
+            record.state = .cancelled
+            record.message = "cancelled"
+            records[token] = record
+        }
+        lock.unlock()
+        session.getAllTasks { tasks in
+            for task in tasks where task.taskDescription == token {
+                task.cancel()
+            }
+        }
+    }
+
+    func remove(token: String) {
+        lock.lock()
+        records.removeValue(forKey: token)
+        lock.unlock()
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard let token = downloadTask.taskDescription else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        guard var record = records[token], !record.cancelled else { return }
+        if totalBytesExpectedToWrite > 0 {
+            let pct = Int((Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100)
+            record.progress = min(98, max(0, pct))
+            record.message = "downloading \(record.progress)%…"
+        } else {
+            let mb = max(1, Int(totalBytesWritten / 1_048_576))
+            record.progress = 0
+            record.message = "downloading \(mb) MB…"
+        }
+        records[token] = record
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        guard let token = downloadTask.taskDescription else { return }
+        lock.lock()
+        guard var record = records[token] else {
+            lock.unlock()
+            return
+        }
+        record.state = .saving
+        record.progress = 99
+        record.message = "saving…"
+        let dest = record.destURL
+        lock.unlock()
+
+        do {
+            if FileManager.default.fileExists(atPath: dest.path) {
+                try FileManager.default.removeItem(at: dest)
+            }
+            try FileManager.default.moveItem(at: location, to: dest)
+            lock.lock()
+            record.state = .done
+            record.progress = 100
+            record.message = "done"
+            record.path = dest.path
+            records[token] = record
+            lock.unlock()
+            os_log(.default, "Downloaded media to %@", dest.path)
+        } catch {
+            lock.lock()
+            record.state = .error
+            record.error = "Save failed: \(error.localizedDescription)"
+            record.message = record.error ?? "Save failed"
+            records[token] = record
+            lock.unlock()
+            try? FileManager.default.removeItem(at: location)
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let token = task.taskDescription else { return }
+        guard let error = error else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        guard var record = records[token] else { return }
+        if record.state == .done || record.state == .cancelled { return }
+        if (error as NSError).code == NSURLErrorCancelled {
+            record.state = .cancelled
+            record.message = "cancelled"
+        } else {
+            record.state = .error
+            record.error = error.localizedDescription
+            record.message = record.error ?? "Download failed"
+        }
+        records[token] = record
     }
 }

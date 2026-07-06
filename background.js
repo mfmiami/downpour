@@ -688,7 +688,7 @@ async function fetchBytesWithProgress(url, job, signal) {
       const pct = Math.round((received / total) * 100);
       if (pct !== lastPct) { lastPct = pct; update(job, { progress: pct }); }
     } else {
-      update(job, { message: `downloading ${Math.round(received / 1048576)} MB…` });
+      update(job, { progress: 0, message: `downloading ${Math.round(received / 1048576)} MB…` });
     }
   }
   return concatChunks(chunks);
@@ -753,7 +753,13 @@ async function saveToDownloads(bytes, filename, job) {
       const end = Math.min(off + NATIVE_CHUNK, total);
       const resp = await sendNative({ type: "saveChunk", token, data: base64FromBytes(bytes.subarray(off, end)) });
       if (!resp || !resp.ok) throw new Error((resp && resp.error) || "saveChunk failed");
-      if (job) update(job, { message: `saving ${Math.round(end / 1048576)}/${Math.round(total / 1048576)} MB…` });
+      if (job) {
+        update(job, {
+          state: "saving",
+          progress: Math.round((end / total) * 100),
+          message: `saving ${Math.round(end / 1048576)}/${Math.round(total / 1048576)} MB…`
+        });
+      }
     }
     const fin = await sendNative({ type: "saveEnd", token, filename });
     if (fin && fin.ok) return fin.path;
@@ -962,20 +968,48 @@ function filenameWithImageExtension(filename, bytes) {
   return `${base}.${ext}`;
 }
 
-async function runEromeNativeDownload(job) {
+async function runNativeUrlDownload(job, options) {
+  let token = null;
   try {
     ensureNotCancelled(job);
     assertFetchable(job.url);
-    update(job, { state: "running", progress: 0, message: "downloading via native…" });
-    const referer = eromeRefererForCdn(job.url);
-    const resp = await sendNative({
-      type: "downloadUrl",
+    update(job, { state: "running", progress: 0, message: "downloading…" });
+    const begin = await sendNative({
+      type: "downloadUrlBegin",
       url: job.url,
       filename: job.filename,
-      referer
+      referer: options && options.referer
     });
-    if (!resp || !resp.ok) throw new Error((resp && resp.error) || "native download failed");
-    update(job, { state: "done", progress: 100, message: `Saved → ${resp.path}`, path: resp.path });
+    if (!begin || !begin.ok || !begin.token) {
+      throw new Error((begin && begin.error) || "native download unavailable");
+    }
+    token = begin.token;
+    while (true) {
+      ensureNotCancelled(job);
+      const status = await sendNative({ type: "downloadUrlStatus", token });
+      if (!status) throw new Error("native download status failed");
+      if (status.state === "done") {
+        update(job, { state: "done", progress: 100, message: `Saved → ${status.path}`, path: status.path });
+        return;
+      }
+      if (status.state === "error") throw new Error(status.error || "native download failed");
+      if (status.state === "cancelled") throw new Error("cancelled");
+      update(job, {
+        state: status.state === "saving" ? "saving" : "running",
+        progress: typeof status.progress === "number" ? status.progress : job.progress,
+        message: status.message || job.message
+      });
+      await sleep(400);
+    }
+  } catch (e) {
+    if (token) try { await sendNative({ type: "downloadUrlAbort", token }); } catch (_) {}
+    throw e;
+  }
+}
+
+async function runEromeNativeDownload(job) {
+  try {
+    await runNativeUrlDownload(job, { referer: eromeRefererForCdn(job.url) });
   } catch (e) {
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
     else update(job, { state: "error", message: `ERROR: ${e.message}` });
@@ -1016,7 +1050,7 @@ async function runDirectJob(job) {
         throw new Error("Download too small — image may be unavailable. Try opening the post first.");
       }
     }
-    update(job, { state: "saving", progress: 100, message: `saving ${saveName}…` });
+    update(job, { state: "saving", progress: 95, message: `saving ${saveName}…` });
     const path = await saveToDownloads(bytes, saveName, job);
     update(job, { state: "done", message: `Saved → ${path}`, path });
   } catch (e) {

@@ -194,6 +194,48 @@
       text-overflow: ellipsis;
     }
 
+    .download-progress {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .download-progress.active {
+      display: flex;
+    }
+
+    .download-progress-track {
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .download-progress-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #7c3aed, #22d3ee);
+      transition: width 0.25s ease;
+    }
+
+    .download-progress-bar.indeterminate {
+      width: 38% !important;
+      animation: progress-indeterminate 1.15s ease-in-out infinite;
+    }
+
+    @keyframes progress-indeterminate {
+      0% { transform: translateX(-120%); }
+      50% { transform: translateX(90%); }
+      100% { transform: translateX(260%); }
+    }
+
+    .download-progress-label {
+      font-size: 10px;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+
     .card-actions {
       display: flex;
       flex-wrap: wrap;
