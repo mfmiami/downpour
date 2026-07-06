@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.4"
+HOST_VERSION = "1.0.5"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
@@ -38,6 +38,11 @@ def resolve_ytdlp_script() -> Path:
 
 
 def resolve_ffmpeg_dir() -> str | None:
+    for directory in (SUPPORT_DIR / "ffmpeg", SCRIPT_DIR / "ffmpeg"):
+        binary = directory / "ffmpeg"
+        if binary.is_file() and os.access(binary, os.X_OK):
+            return str(directory)
+
     search_dirs: list[Path] = []
     for part in os.environ.get("PATH", "").split(os.pathsep):
         if part:

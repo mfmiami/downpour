@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SOURCE_HOST="$SCRIPT_DIR/downpour_host.py"
 TEMPLATE="$SCRIPT_DIR/com.dtek.downpour.json"
 CHROME_EXT_ID="${1:-}"
@@ -10,6 +11,7 @@ SUPPORT_DIR="$HOME/Library/Application Support/Downpour"
 HOST_DIR="$SUPPORT_DIR/native-host"
 HOST_PY="$HOST_DIR/downpour_host.py"
 YTDLP_DEST="$SUPPORT_DIR/yt-dlp.py"
+FFMPEG_DEST="$SUPPORT_DIR/ffmpeg"
 
 if [[ ! -f "$SOURCE_HOST" ]]; then
   echo "ERROR: downpour_host.py not found" >&2
@@ -43,6 +45,27 @@ for ytdlp_candidate in \
     break
   fi
 done
+
+mkdir -p "$FFMPEG_DEST"
+for ffmpeg_candidate in \
+  "$SCRIPT_DIR/ffmpeg/ffmpeg" \
+  "$ROOT/dist/staging/Downpour.app/Contents/Resources/ffmpeg/ffmpeg" \
+  "$ROOT/safari-app/Downpour/Shared (App)/Resources/ffmpeg/ffmpeg"; do
+  if [[ -x "$ffmpeg_candidate" ]]; then
+    if [[ "$ffmpeg_candidate" -ef "$FFMPEG_DEST/ffmpeg" ]]; then
+      echo "  ✓ ffmpeg already at $FFMPEG_DEST/ffmpeg"
+    else
+      cp "$ffmpeg_candidate" "$FFMPEG_DEST/ffmpeg"
+      chmod +x "$FFMPEG_DEST/ffmpeg"
+      echo "  ✓ ffmpeg → $FFMPEG_DEST/ffmpeg"
+    fi
+    break
+  fi
+done
+if [[ ! -x "$FFMPEG_DEST/ffmpeg" ]]; then
+  echo "  ⚠ bundled ffmpeg not found — run: ./scripts/bootstrap-chrome-ffmpeg.sh" >&2
+  echo "    (yt-dlp will fall back to system ffmpeg if installed)" >&2
+fi
 
 LAUNCHER="$HOST_DIR/run-downpour-host.sh"
 cat > "$LAUNCHER" <<EOF

@@ -40,6 +40,15 @@ For YouTube and other yt-dlp jobs, install the native messaging helper (macOS):
 
 Requires Python 3 and `yt-dlp.py` at the repo root (same script bundled in the Safari app).
 
+**ffmpeg** (for YouTube best-quality merges) is bundled like the Safari app — not stored in git (~63MB). After clone:
+
+```bash
+./scripts/bootstrap-chrome-ffmpeg.sh
+./native-host/install-native-host.sh YOUR_EXTENSION_ID
+```
+
+If bootstrap cannot find a binary, install falls back to system `ffmpeg` (`brew install ffmpeg`).
+
 ## Development
 
 After editing shared files in `safari-extension/` (`background.js`, `overlay.js`, etc.):

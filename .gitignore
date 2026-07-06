@@ -33,6 +33,7 @@ __pycache__/
 # Large bundled runtime deps (download locally — see scripts/bootstrap-mac-deps.sh)
 safari-app/**/Resources/python/
 safari-app/**/Resources/ffmpeg/
+chrome-extension/native-host/ffmpeg/
 
 # Archives
 *.xcarchive
