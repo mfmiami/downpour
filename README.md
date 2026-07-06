@@ -1,10 +1,10 @@
 # Downpour
 
-**macOS Safari extension** — save videos and images from the web with hover overlays on Instagram, TikTok, X, and generic sites, plus a popup for YouTube and detected streams.
+**macOS Safari extension** — save videos and images from the web with hover overlays on Instagram, TikTok, X, and generic sites, plus a popup for YouTube and detected streams. A **Chrome port** is included for Chromium browsers.
 
-**Current version:** 2.12.3
+**Current version:** see `safari-extension/manifest.json`
 
-## Download & install
+## Download & install (Safari)
 
 | | |
 |---|---|
@@ -29,57 +29,53 @@
 - Parallel downloads with per-video progress
 - Instagram image posts save with the correct file extension
 
-## Development
-
-### Repository layout
+## Repository layout
 
 | Path | Purpose |
 |------|---------|
-| `/` | Extension source (Manifest V3 JS) |
-| `chrome-extension/` | Chrome port (load unpacked; see `chrome-extension/README.md`) |
-| `releases/` | Installer DMG output (`Downpour.dmg`) |
-| `safari-app/` | macOS Xcode project (synced before publish) |
-| `sync-to-safari.sh` | Copy extension JS → Xcode `Resources/` |
-| `scripts/sync-chrome.sh` | Copy extension JS → `chrome-extension/` |
-| `scripts/build-installer.sh` | Build app and package the DMG |
-| `scripts/install-downpour.sh` | One-click install (used inside the DMG) |
-| `scripts/publish-sync.sh` | Refresh `safari-app/` from `../Downpour-Safari/` |
-| `scripts/bootstrap-mac-deps.sh` | Restore bundled Python + ffmpeg after clone |
-| `scripts/publish-release.sh` | Build DMG and upload to GitHub Releases |
+| `safari-extension/` | **Safari web extension** source (Manifest V3 JS) |
+| `chrome-extension/` | **Chrome port** (load unpacked) |
+| `safari-app/` | macOS Xcode project snapshot (git) |
+| `releases/` | Installer DMG output |
+| `scripts/` | Build, sync, and publish tooling |
+| `test/` | Regression tests |
+| `remux.js` | MP4 remux source of truth (inlined in `background.js`) |
+| `yt-dlp.py` | Bundled yt-dlp wrapper for native downloads |
 
-Day-to-day development uses the sibling Xcode project at `../Downpour-Safari/`.
+Day-to-day Xcode work uses the sibling project at `../Downpour-Safari/`.
 
-### Build from source
+## Development
+
+### Edit extension JS
+
+Work in **`safari-extension/`**, then sync:
 
 ```bash
-./sync-to-safari.sh
+./scripts/sync-safari.sh      # → ../Downpour-Safari Xcode Resources
+./scripts/sync-chrome.sh        # → chrome-extension/
+```
+
+### Build Safari app
+
+```bash
+./scripts/sync-safari.sh
 ../Downpour-Safari/build-macos.sh
 ```
 
-After cloning:
-
-```bash
-./scripts/bootstrap-mac-deps.sh
-open safari-app/Downpour/Downpour.xcodeproj
-```
-
-### Build installer
+### Build installer DMG
 
 ```bash
 ./scripts/build-installer.sh
 ```
 
-Creates `releases/Downpour-<version>.dmg` and `releases/Downpour.dmg`.
+### Chrome (unpacked)
 
 ```bash
-SKIP_BUILD=1 INSTALLER_APP=/Applications/Downpour.app ./scripts/build-installer.sh
+./scripts/sync-chrome.sh
+# chrome://extensions → Load unpacked → chrome-extension/
 ```
 
-Publish to GitHub Releases (requires [GitHub CLI](https://cli.github.com/)):
-
-```bash
-./scripts/publish-release.sh
-```
+See [`chrome-extension/README.md`](chrome-extension/README.md) for the optional native host.
 
 ### Tests
 
@@ -87,13 +83,13 @@ Publish to GitHub Releases (requires [GitHub CLI](https://cli.github.com/)):
 node test/run-tests.mjs
 ```
 
-### Publish code changes
+### After cloning
 
 ```bash
-./scripts/publish-sync.sh
-git add -A && git commit -m "..." && git push
+./scripts/bootstrap-mac-deps.sh
+open safari-app/Downpour/Downpour.xcodeproj
 ```
 
 ## Legal note
 
-Only download content you have the right to save. Social downloads may read Safari cookies via yt-dlp. Downpour is not affiliated with YouTube, TikTok, Instagram, or X.
+Only download content you have the right to save. Social downloads may read browser cookies via yt-dlp. Downpour is not affiliated with YouTube, TikTok, Instagram, or X.

@@ -1,31 +1,30 @@
-# Downpour — macOS Safari Extension
+# Downpour — macOS App (Safari)
 
-Host app and Safari web extension for [Downpour](../videodownload). **macOS only.**
+Host app and Safari web extension wrapper for [Downpour](../). **macOS only.**
 
-## Build & run
+The **web extension JavaScript** lives in [`../safari-extension/`](../safari-extension/). This folder holds the Xcode project, Swift native bridge, and bundled yt-dlp runtime.
 
-```bash
-open Downpour/Downpour.xcodeproj
-```
+## Develop
 
-Select the **Downpour** scheme and press **Run** (⌘R), then enable the extension in **Safari → Settings → Extensions**.
+1. Edit JS in `../safari-extension/`
+2. Sync into the live Xcode tree:
 
-## Extension source
+   ```bash
+   ../scripts/sync-safari.sh
+   ```
 
-Edit JavaScript in the sibling `videodownload/` repo, then sync:
+3. Build:
 
-```bash
-../videodownload/sync-to-safari.sh
-```
+   ```bash
+   ../Downpour-Safari/build-macos.sh
+   # or from this folder:
+   ./build-macos.sh
+   ```
 
-## Release build
-
-```bash
-./build-macos.sh
-```
-
-Package an installer DMG from the extension repo:
+## Installer
 
 ```bash
-../videodownload/scripts/build-installer.sh
+../scripts/build-installer.sh
 ```
+
+Output: `../releases/Downpour-<version>.dmg`

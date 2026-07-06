@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-SRC="$ROOT/../videodownload"
+SRC="$ROOT/.."
 XCODE_DIR="$ROOT/Downpour"
 
 "$SRC/sync-to-safari.sh"

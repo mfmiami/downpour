@@ -11,7 +11,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
+const root = path.join(__dirname, "..", "safari-extension");
 const require = createRequire(import.meta.url);
 
 function loadPlatforms() {
@@ -66,7 +66,7 @@ const eromePick = P.pickGenericVideoUrl(null, [eromeThumb, eromeMp4]);
 assert.equal(eromePick.url, eromeMp4);
 
 // remux error handling
-const { flattenFragmentedMp4 } = require(path.join(root, "remux.js"));
+const { flattenFragmentedMp4 } = require(path.join(__dirname, "..", "remux.js"));
 assert.throws(
   () => flattenFragmentedMp4(new Uint8Array([0, 1, 2, 3])),
   /not an MP4/

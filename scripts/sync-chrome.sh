@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Copy shared extension source from repo root into chrome-extension/.
+# Copy shared extension source from safari-extension/ into chrome-extension/.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$ROOT/safari-extension"
 DEST="$ROOT/chrome-extension"
 
 FILES=(
@@ -21,23 +22,23 @@ FILES=(
   mux.min.js
 )
 
-echo "Syncing extension source → chrome-extension/"
+echo "Syncing safari-extension → chrome-extension/"
 mkdir -p "$DEST/icons"
 for file in "${FILES[@]}"; do
-  cp "$ROOT/$file" "$DEST/$file"
+  cp "$SRC/$file" "$DEST/$file"
   echo "  ✓ $file"
 done
 
-if [[ -d "$ROOT/icons" ]]; then
-  rsync -a --delete "$ROOT/icons/" "$DEST/icons/"
+if [[ -d "$SRC/icons" ]]; then
+  rsync -a --delete "$SRC/icons/" "$DEST/icons/"
   echo "  ✓ icons/"
 fi
 
-ROOT_VER="$(python3 -c "import json; print(json.load(open('$ROOT/manifest.json'))['version'])")"
+SAFARI_VER="$(python3 -c "import json; print(json.load(open('$SRC/manifest.json'))['version'])")"
 CHROME_VER="$(python3 -c "import json; print(json.load(open('$DEST/manifest.json'))['version'])")"
 
-if [[ "$ROOT_VER" != "$CHROME_VER" ]]; then
-  echo "WARNING: version mismatch — root manifest=$ROOT_VER, chrome-extension/manifest.json=$CHROME_VER" >&2
+if [[ "$SAFARI_VER" != "$CHROME_VER" ]]; then
+  echo "WARNING: version mismatch — safari-extension=$SAFARI_VER, chrome-extension/manifest.json=$CHROME_VER" >&2
   echo "Update chrome-extension/manifest.json version to match." >&2
 fi
 

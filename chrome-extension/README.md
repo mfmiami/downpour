@@ -1,10 +1,10 @@
 # Downpour — Chrome Extension
 
-Chrome port of the Downpour video downloader. Shares the same content scripts, overlay, and popup as the Safari build in the repo root.
+Chrome port of the Downpour video downloader. Shares the same content scripts, overlay, and popup as [`../safari-extension/`](../safari-extension/).
 
 ## Quick start (unpacked)
 
-1. Sync shared source from the repo root:
+1. Sync shared source from `safari-extension/`:
 
    ```bash
    ./scripts/sync-chrome.sh
@@ -42,7 +42,7 @@ Requires Python 3 and `yt-dlp.py` at the repo root (same script bundled in the S
 
 ## Development
 
-After editing shared files in the repo root (`background.js`, `overlay.js`, etc.):
+After editing shared files in `safari-extension/` (`background.js`, `overlay.js`, etc.):
 
 ```bash
 ./scripts/sync-chrome.sh
@@ -66,4 +66,4 @@ Chrome-only files (do not overwrite when syncing):
 | yt-dlp via host app | yt-dlp via optional native host |
 | DMG installer | Load unpacked / Web Store |
 
-Shared logic lives in the repo root; `chrome-platform.js` sets `globalThis.__downpour*` hooks before `background.js` loads.
+Shared logic lives in `safari-extension/`; `chrome-platform.js` sets `globalThis.__downpour*` hooks before `background.js` loads.

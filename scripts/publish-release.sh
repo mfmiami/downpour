@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="$(python3 -c "import json; print(json.load(open('$ROOT/manifest.json'))['version'])")"
+VERSION="$(python3 -c "import json; print(json.load(open('$ROOT/safari-extension/manifest.json'))['version'])")"
 TAG="v${VERSION}"
 DMG="$ROOT/releases/Downpour-${VERSION}.dmg"
 
