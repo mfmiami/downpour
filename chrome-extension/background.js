@@ -311,8 +311,52 @@ function isNativeHostMissingError(message) {
   return /native messaging host not found/i.test(message || "");
 }
 
+function isNativeHostExitedError(message) {
+  return /native host has exited/i.test(message || "");
+}
+
 function nativeHostHelpMessage() {
-  return "Install the optional YouTube helper: open chrome-extension/native-host/install-native-host.sh in Terminal with your extension ID from chrome://extensions.";
+  return "Reinstall the YouTube helper: chrome-extension/native-host/install-native-host.sh YOUR_EXTENSION_ID";
+}
+
+let nativeHostPingCache = null;
+
+async function nativeHostReachable() {
+  if (nativeHostPingCache && Date.now() - nativeHostPingCache.at < 60000) {
+    return nativeHostPingCache.ok;
+  }
+  try {
+    const resp = await sendNative({ type: "ping" });
+    const ok = !!(resp && resp.ok);
+    nativeHostPingCache = { ok, at: Date.now() };
+    return ok;
+  } catch (e) {
+    nativeHostPingCache = { ok: false, at: Date.now() };
+    return false;
+  }
+}
+
+function isYoutubeManifestUrl(url) {
+  return /manifest\.googlevideo\.com/i.test(url)
+    || /googlevideo\.com\/api\/manifest/i.test(url)
+    || (/googlevideo|youtube/i.test(url) && /\.m3u8(\?|$)/i.test(url));
+}
+
+async function queryYoutubeStreams(job) {
+  if (job.tabId == null) return null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const streams = await chrome.tabs.sendMessage(job.tabId, {
+        action: "getYoutubeStreams",
+        quality: job.quality || "normal"
+      });
+      if (streams && !streams.error && streams.url) return streams;
+      if (attempt < 3) await sleep(400);
+    } catch (e) {
+      if (attempt < 3) await sleep(400);
+    }
+  }
+  return null;
 }
 
 function pickBestVideoplayback(urls, quality) {
@@ -410,24 +454,16 @@ async function collectYoutubeStreamCandidates(job) {
     else direct.push(item);
   };
 
-  if (job.tabId != null) {
-    try {
-      const picked = await chrome.tabs.sendMessage(job.tabId, {
-        action: "getYoutubeStreams",
-        quality: job.quality || "normal"
-      });
-      add(picked);
-      if (picked && Array.isArray(picked.alternates)) {
-        for (const alt of picked.alternates) add(alt);
-      }
-    } catch (e) {}
+  const picked = await queryYoutubeStreams(job);
+  add(picked);
+  if (picked && Array.isArray(picked.alternates)) {
+    for (const alt of picked.alternates) add(alt);
   }
 
   if (job.tabId != null && detectedVideos[job.tabId]) {
-    const hls = [...detectedVideos[job.tabId]].find(
-      (u) => /\.m3u8(\?|$)/i.test(u) && /googlevideo|youtube/i.test(u)
-    );
-    if (hls) add({ kind: "stream", url: hls, source: "network-hls" });
+    for (const u of detectedVideos[job.tabId]) {
+      if (isYoutubeManifestUrl(u)) add({ kind: "stream", url: u, source: "network-hls" });
+    }
   }
 
   for (const url of collectYoutubePlaybackUrls(job)) {
@@ -1202,7 +1238,13 @@ async function runYoutubeJob(job) {
           if (!/403/.test(e.message)) throw e;
         }
       }
+      if (candidates.length === 0) {
+        throw new Error("No stream captured — play the video for a few seconds, then try again.");
+      }
       if (lastError) throw lastError;
+    }
+    if (usesChromeDownloads() && !(await nativeHostReachable())) {
+      throw new Error("No working stream in tab and YouTube helper is unavailable. Play the video and retry, or reinstall the native helper.");
     }
     if (!job.watchUrl) {
       const watchUrl = resolveYtDlpWatchUrl(job);
@@ -1212,7 +1254,12 @@ async function runYoutubeJob(job) {
     await runYtDlpNativeJob(job);
   } catch (e) {
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
-    else if (usesChromeDownloads() && isNativeHostMissingError(e.message)) {
+    else if (usesChromeDownloads() && isNativeHostExitedError(e.message)) {
+      update(job, {
+        state: "error",
+        message: `ERROR: YouTube helper crashed. Quit Chrome, run: chrome-extension/native-host/install-native-host.sh YOUR_EXTENSION_ID — then reopen Chrome.`
+      });
+    } else if (usesChromeDownloads() && isNativeHostMissingError(e.message)) {
       update(job, {
         state: "error",
         message: `ERROR: Play the video for a few seconds, then try again. ${nativeHostHelpMessage()}`

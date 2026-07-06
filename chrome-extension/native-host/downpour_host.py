@@ -20,18 +20,28 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.0"
+HOST_VERSION = "1.0.1"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parent.parent
-SUPPORT_YTDLP = Path.home() / "Library" / "Application Support" / "Downpour" / "yt-dlp.py"
+SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
+SUPPORT_YTDLP = SUPPORT_DIR / "yt-dlp.py"
+LOG_PATH = SUPPORT_DIR / "native-host.log"
 
 
 def resolve_ytdlp_script() -> Path:
-    for candidate in (SUPPORT_YTDLP, REPO_ROOT / "yt-dlp.py", SCRIPT_DIR / "yt-dlp.py"):
+    for candidate in (SUPPORT_YTDLP, SCRIPT_DIR / "yt-dlp.py"):
         if candidate.exists():
             return candidate
-    return REPO_ROOT / "yt-dlp.py"
+    return SUPPORT_YTDLP
+
+
+def log_error(message: str) -> None:
+    try:
+        SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
+        with LOG_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(message.rstrip() + "\n")
+    except Exception:
+        pass
 
 KNOWN_EXTENSIONS = {
     "mp4", "webm", "mov", "mkv", "m4v", "m4a",
@@ -349,6 +359,14 @@ def save_abort(data: dict[str, Any]) -> dict[str, Any]:
 
 def handle(message: dict[str, Any]) -> dict[str, Any]:
     msg_type = message.get("type")
+    if msg_type == "ping":
+        ytdlp = resolve_ytdlp_script()
+        return {
+            "ok": True,
+            "hostVersion": HOST_VERSION,
+            "ytdlp": str(ytdlp),
+            "ytdlpExists": ytdlp.exists(),
+        }
     if msg_type == "saveToDownloads":
         return save_to_downloads(message)
     if msg_type == "saveBegin":
@@ -377,11 +395,19 @@ def handle(message: dict[str, Any]) -> dict[str, Any]:
 
 
 def main() -> None:
-    while True:
-        message = read_message()
-        if message is None:
-            break
-        write_message(handle(message))
+    try:
+        while True:
+            message = read_message()
+            if message is None:
+                break
+            try:
+                write_message(handle(message))
+            except Exception as exc:
+                log_error(f"handle error: {exc!r}")
+                write_message({"ok": False, "error": str(exc)})
+    except Exception as exc:
+        log_error(f"host fatal: {exc!r}")
+        raise
 
 
 if __name__ == "__main__":
