@@ -294,15 +294,9 @@ async function fetchInnertubePlayer(videoId) {
 }
 
 function formatDirectUrl(format) {
-  if (format.url) return format.url;
-  const cipher = format.signatureCipher || format.cipher;
-  if (!cipher) return null;
-  const params = {};
-  cipher.split("&").forEach((part) => {
-    const eq = part.indexOf("=");
-    if (eq > 0) params[part.slice(0, eq)] = decodeURIComponent(part.slice(eq + 1));
-  });
-  return params.url || null;
+  // Cipher/throttled URLs need a signature — unsigned base URLs always 403 in-tab.
+  if (format && format.url) return format.url;
+  return null;
 }
 
 function isChromeExtension() {

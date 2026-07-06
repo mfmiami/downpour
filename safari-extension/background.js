@@ -466,8 +466,10 @@ async function collectYoutubeStreamCandidates(job) {
     }
   }
 
-  for (const url of collectYoutubePlaybackUrls(job)) {
-    add({ kind: "direct", url, source: "network" });
+  if (!picked || picked.error || !picked.url) {
+    for (const url of collectYoutubePlaybackUrls(job)) {
+      add({ kind: "direct", url, source: "network" });
+    }
   }
 
   return [...streams, ...direct];
@@ -1241,10 +1243,14 @@ async function runYoutubeJob(job) {
       if (candidates.length === 0) {
         throw new Error("No stream captured — play the video for a few seconds, then try again.");
       }
-      if (lastError) throw lastError;
+      if (lastError && !/403/.test(lastError.message)) throw lastError;
     }
-    if (usesChromeDownloads() && !(await nativeHostReachable())) {
-      throw new Error("No working stream in tab and YouTube helper is unavailable. Play the video and retry, or reinstall the native helper.");
+    if (!(await nativeHostReachable())) {
+      throw new Error(
+        usesChromeDownloads()
+          ? "Tab download failed and YouTube helper is unavailable. Play the video and retry, or reinstall the native helper."
+          : "YouTube helper is unavailable."
+      );
     }
     if (!job.watchUrl) {
       const watchUrl = resolveYtDlpWatchUrl(job);
