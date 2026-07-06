@@ -11,7 +11,7 @@ function reportSocialPages() {
   if (!url) return;
   if (lastSocialReport[platform] === url) return;
   lastSocialReport[platform] = url;
-  chrome.runtime.sendMessage({ action: "socialPage", platform, url });
+  DownpourBridge.sendMessage({ action: "socialPage", platform, url });
 }
 
 function rememberTikTokPageUrl(url) {
@@ -59,7 +59,7 @@ function reportYoutubePage() {
   const normalized = normalizeYoutubeUrl(href);
   if (normalized === lastReportedYoutube) return;
   lastReportedYoutube = normalized;
-  chrome.runtime.sendMessage({ action: "youtubePage", url: normalized });
+  DownpourBridge.sendMessage({ action: "youtubePage", url: normalized });
 }
 
 function findVideos() {
@@ -89,7 +89,7 @@ function findVideos() {
   });
 
   if (videoUrls.size > 0) {
-    chrome.runtime.sendMessage({
+    DownpourBridge.sendMessage({
       action: "videosFound",
       videos: Array.from(videoUrls)
     });
@@ -131,19 +131,39 @@ reportYoutubePage();
 reportSocialPages();
 findVideos();
 
+let socialReportInterval = null;
 if (DownpourPlatforms.isSocialOverlayHost(location.href)) {
-  setInterval(() => reportSocialPages(), 2000);
+  socialReportInterval = setInterval(() => {
+    if (!DownpourBridge.alive()) return;
+    reportSocialPages();
+  }, 2000);
+  DownpourBridge.onInvalidated(() => {
+    if (socialReportInterval) clearInterval(socialReportInterval);
+  });
 }
 
 // YouTube/social sites are SPAs — re-report on navigation and DOM updates.
-window.addEventListener("popstate", () => { reportYoutubePage(); reportSocialPages(); });
-window.addEventListener("yt-navigate-finish", reportYoutubePage);
+window.addEventListener("popstate", () => {
+  if (!DownpourBridge.alive()) return;
+  reportYoutubePage();
+  reportSocialPages();
+});
+window.addEventListener("yt-navigate-finish", () => {
+  if (DownpourBridge.alive()) reportYoutubePage();
+});
 
 const observer = new MutationObserver(() => {
+  if (!DownpourBridge.alive()) {
+    observer.disconnect();
+    DownpourBridge.teardown();
+    return;
+  }
   reportYoutubePage();
   reportSocialPages();
   findVideos();
 });
+
+DownpourBridge.onInvalidated(() => observer.disconnect());
 
 observer.observe(document.body, {
   childList: true,
@@ -444,15 +464,15 @@ function injectStreamCapture() {
 }
 
 window.addEventListener("message", (event) => {
-  if (event.source !== window || !event.data) return;
+  if (event.source !== window || !event.data || !DownpourBridge.alive()) return;
   if (event.data.type === "VSD_YT_STREAM" && event.data.url) {
-    chrome.runtime.sendMessage({ action: "youtubeStreamCaptured", url: event.data.url });
+    DownpourBridge.sendMessage({ action: "youtubeStreamCaptured", url: event.data.url });
   }
   if (event.data.type === "VSD_TT_VIDEO" && event.data.url) {
     rememberTikTokPageUrl(event.data.url);
   }
   if (event.data.type === "VSD_SOCIAL_VIDEO" && event.data.url && event.data.platform) {
-    chrome.runtime.sendMessage({
+    DownpourBridge.sendMessage({
       action: "socialPage",
       platform: event.data.platform,
       url: event.data.url
@@ -461,6 +481,7 @@ window.addEventListener("message", (event) => {
 });
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (!DownpourBridge.alive()) return;
   if (request.action === "getYoutubePage") {
     const href = window.location.href;
     sendResponse(isYoutubePage(href) ? { url: normalizeYoutubeUrl(href) } : { url: null });

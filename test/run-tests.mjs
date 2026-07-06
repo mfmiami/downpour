@@ -73,6 +73,7 @@ assert.throws(
 );
 
 function loadInstagram() {
+  const bridgeCode = fs.readFileSync(path.join(root, "extension-bridge.js"), "utf8");
   const injectCode = fs.readFileSync(path.join(root, "page-inject.js"), "utf8");
   const code = fs.readFileSync(path.join(root, "instagram.js"), "utf8");
   const el = { style: {}, dataset: {}, setAttribute: () => {}, appendChild: () => {}, remove: () => {} };
@@ -99,6 +100,7 @@ function loadInstagram() {
     DownpourPlatforms: { isInstagramHost: () => true }
   };
   const ctx = vm.createContext(sandbox);
+  vm.runInContext(bridgeCode, ctx);
   vm.runInContext(injectCode, ctx);
   return vm.runInContext(`${code}\n;DownpourInstagram;`, ctx);
 }

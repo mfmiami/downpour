@@ -11,6 +11,7 @@ FILES=(
   overlay.js
   content.js
   platforms.js
+  extension-bridge.js
   page-inject.js
   popup.js
   popup.html

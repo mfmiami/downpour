@@ -4,6 +4,7 @@
 const DownpourInject = (function () {
   const injected = new Map();
   const useScriptingInject = (() => {
+    if (!DownpourBridge.alive()) return false;
     try {
       const perms = chrome.runtime.getManifest().permissions || [];
       return perms.includes("scripting");
@@ -14,8 +15,12 @@ const DownpourInject = (function () {
 
   function injectViaDom(resource) {
     return new Promise((resolve) => {
+      if (!DownpourBridge.alive()) {
+        resolve();
+        return;
+      }
       const script = document.createElement("script");
-      script.src = chrome.runtime.getURL(resource);
+      script.src = DownpourBridge.getURL(resource);
       script.onload = () => { script.remove(); resolve(); };
       script.onerror = () => resolve();
       (document.head || document.documentElement).appendChild(script);
@@ -24,9 +29,9 @@ const DownpourInject = (function () {
 
   function injectViaScripting(resource) {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "injectPageScript", file: resource }, () => {
+      if (!DownpourBridge.sendMessage({ action: "injectPageScript", file: resource }, () => resolve())) {
         resolve();
-      });
+      }
     });
   }
 

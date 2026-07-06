@@ -397,7 +397,7 @@
     if (jobId == null || !isCurrentSave(ref, gen)) return;
     ref.jobId = jobId;
     if (ref.cancelRequested) {
-      chrome.runtime.sendMessage({ action: "cancelJob", jobId }, () => {});
+      sendRuntimeMessage({ action: "cancelJob", jobId });
       resetAfterCancel(media, ref);
       return;
     }
@@ -412,7 +412,7 @@
     ref.cancelRequested = true;
     reflectMediaState(media);
     if (ref.jobId != null) {
-      chrome.runtime.sendMessage({ action: "cancelJob", jobId: ref.jobId }, () => {});
+      sendRuntimeMessage({ action: "cancelJob", jobId: ref.jobId });
     }
   }
 
@@ -580,13 +580,23 @@
     if (btnHost && btnHost.classList.contains("visible")) reflectMediaState(currentMedia);
   }
 
+  function sendRuntimeMessage(message, callback) {
+    DownpourBridge.sendMessage(message, (resp) => {
+      if (callback) callback(resp);
+    });
+  }
+
   function resolveTabId(cb) {
     if (contentTabId != null) {
       cb(contentTabId);
       return;
     }
-    chrome.runtime.sendMessage({ action: "getTabId" }, (resp) => {
-      if (!chrome.runtime.lastError && resp && resp.tabId != null) contentTabId = resp.tabId;
+    if (!DownpourBridge.alive()) {
+      cb(contentTabId);
+      return;
+    }
+    sendRuntimeMessage({ action: "getTabId" }, (resp) => {
+      if (resp && resp.tabId != null) contentTabId = resp.tabId;
       cb(contentTabId);
     });
   }
@@ -598,15 +608,21 @@
     }
   }
 
+  DownpourBridge.onInvalidated(stopJobPoll);
+
   function startJobPoll() {
     if (jobPollTimer) return;
     jobPollTimer = setInterval(() => {
+      if (!DownpourBridge.alive()) {
+        stopJobPoll();
+        return;
+      }
       if (activeMedia.size === 0) {
         stopJobPoll();
         return;
       }
-      chrome.runtime.sendMessage({ action: "getJobs" }, (resp) => {
-        if (chrome.runtime.lastError || !resp || !resp.jobs) return;
+      sendRuntimeMessage({ action: "getJobs" }, (resp) => {
+        if (!resp || !resp.jobs) return;
         for (const media of Array.from(activeMedia)) {
           const ref = mediaJobs.get(media);
           if (!ref || ref.jobId == null) continue;
@@ -624,7 +640,7 @@
     ref.cdnUrl = null;
     resolveTabId((tabId) => {
       if (!isCurrentSave(ref, gen)) return;
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         action: "downloadSocial",
         platform,
         url: normalized,
@@ -633,7 +649,7 @@
         tabId
       }, (resp) => {
         if (!isCurrentSave(ref, gen)) return;
-        if (chrome.runtime.lastError || !resp || !resp.ok) {
+        if (!resp || !resp.ok) {
           failSave(mediaEl, ref, "Save failed", gen);
           return;
         }
@@ -650,7 +666,7 @@
     const tabFetch = usesTabFetch();
     resolveTabId((tabId) => {
       if (!isCurrentSave(ref, gen)) return;
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         action: "downloadStream",
         url,
         filename,
@@ -659,7 +675,7 @@
         tabId
       }, (resp) => {
       if (!isCurrentSave(ref, gen)) return;
-      if (chrome.runtime.lastError || !resp || !resp.ok) {
+      if (!resp || !resp.ok) {
         const pageUrl = isGenericPlatform() ? null : DownpourPlatforms.resolveSocialPageUrlForVideo(platform, mediaEl);
         if (pageUrl && !ref.ytDlpTried) {
           ref.ytDlpTried = true;
@@ -751,7 +767,7 @@
     const imageDownload = !!(options && options.imageDownload);
     resolveTabId((tabId) => {
       if (!isCurrentSave(ref, gen)) return;
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         action: "downloadDirect",
         url,
         filename,
@@ -761,7 +777,7 @@
         tabId
       }, (resp) => {
       if (!isCurrentSave(ref, gen)) return;
-      if (chrome.runtime.lastError || !resp || !resp.ok) {
+      if (!resp || !resp.ok) {
         if (!tryAlternateSave(mediaEl, ref)) {
           failSave(mediaEl, ref, "Save failed", gen);
         }
@@ -801,8 +817,8 @@
 
   function requestTabVideoState() {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "getVideos" }, (resp) => {
-        if (chrome.runtime.lastError || !resp) {
+      sendRuntimeMessage({ action: "getVideos" }, (resp) => {
+        if (!resp) {
           resolve({ videos: [], tiktokUrl: null, twitterUrl: null });
           return;
         }
