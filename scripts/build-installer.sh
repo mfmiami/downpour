@@ -50,12 +50,24 @@ mkdir -p "$STAGING" "$RELEASES"
 
 APP_NAME="Downpour.app"
 
+echo "Syncing Chrome extension for installer..."
+"$ROOT/scripts/sync-chrome.sh" >/dev/null
+
 echo "Copying app (this may take a moment)..."
 ditto "$APP" "$STAGING/$APP_NAME"
 
+echo "Copying Chrome extension..."
+ditto "$ROOT/chrome-extension" "$STAGING/chrome-extension"
+
+if [[ -f "$ROOT/yt-dlp.py" ]]; then
+  cp "$ROOT/yt-dlp.py" "$STAGING/yt-dlp.py"
+fi
+
 ln -sf /Applications "$STAGING/Applications"
-cp "$ROOT/scripts/install-downpour.sh" "$STAGING/"
-chmod +x "$STAGING/install-downpour.sh"
+for script in install-downpour.sh install-safari.sh install-chrome-extension.sh; do
+  cp "$ROOT/scripts/$script" "$STAGING/"
+  chmod +x "$STAGING/$script"
+done
 
 cat > "$STAGING/Install Downpour.command" <<'EOF'
 #!/bin/bash
@@ -68,28 +80,43 @@ EOF
 chmod +x "$STAGING/Install Downpour.command"
 
 cat > "$STAGING/INSTALL.txt" <<EOF
-Downpour ${VERSION} — macOS Safari Extension
-============================================
+Downpour ${VERSION} — Safari + Chrome
+===================================
 
 Quick install
 -------------
-Double-click "Install Downpour.command" and follow the prompts.
+Double-click "Install Downpour.command" and choose:
+  • Safari app (Downpour.app)
+  • Chrome extension (unpacked)
+  • Both
 
-Manual install
---------------
+Safari (manual)
+---------------
 1. Drag Downpour.app onto the Applications folder alias.
 2. Open Downpour from Applications once.
 3. Safari → Settings → Extensions → enable Downpour.
 
-First launch
-------------
+Chrome (manual)
+---------------
+1. Run: bash install-chrome-extension.sh
+   (copies the extension to ~/Library/Application Support/Downpour/)
+2. Chrome → chrome://extensions → Developer mode ON
+3. Load unpacked → select the folder shown in Finder
+
+YouTube in Chrome (optional)
+----------------------------
+After loading the extension, the installer can set up the native yt-dlp helper.
+You will need your extension ID from chrome://extensions.
+
+First launch (Safari)
+---------------------
 macOS may warn that Downpour is from an unidentified developer.
 Right-click Downpour.app → Open → Open to approve it once.
 
 Privacy
 -------
 Only download content you have the right to save. Social downloads may read
-Safari cookies via yt-dlp. Downpour is not affiliated with YouTube, TikTok,
+browser cookies via yt-dlp. Downpour is not affiliated with YouTube, TikTok,
 Instagram, or X.
 EOF
 

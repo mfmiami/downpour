@@ -24,7 +24,14 @@ HOST_VERSION = "1.0.0"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
-YTDLP_SCRIPT = REPO_ROOT / "yt-dlp.py"
+SUPPORT_YTDLP = Path.home() / "Library" / "Application Support" / "Downpour" / "yt-dlp.py"
+
+
+def resolve_ytdlp_script() -> Path:
+    for candidate in (SUPPORT_YTDLP, REPO_ROOT / "yt-dlp.py", SCRIPT_DIR / "yt-dlp.py"):
+        if candidate.exists():
+            return candidate
+    return REPO_ROOT / "yt-dlp.py"
 
 KNOWN_EXTENSIONS = {
     "mp4", "webm", "mov", "mkv", "m4v", "m4a",
@@ -167,9 +174,10 @@ class YoutubeJob:
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
-    def _yt_dlp_cmd(self) -> list[str]:
+    def _yt_dlp_cmd(self) -> tuple[list[str], str]:
+        ytdlp = resolve_ytdlp_script()
         output_base = unique_path(DOWNLOADS, self.filename).with_suffix("").as_posix()
-        cmd = [sys.executable, "-u", str(YTDLP_SCRIPT), "--no-playlist", "--newline", "-o", output_base + ".%(ext)s"]
+        cmd = [sys.executable, "-u", str(ytdlp), "--no-playlist", "--newline", "-o", output_base + ".%(ext)s"]
         if self.quality == "best":
             cmd.extend(["-f", "bestvideo+bestaudio/best"])
         else:
@@ -178,9 +186,10 @@ class YoutubeJob:
         return cmd, output_base
 
     def _run(self) -> None:
-        if not YTDLP_SCRIPT.exists():
+        ytdlp = resolve_ytdlp_script()
+        if not ytdlp.exists():
             self.state = "error"
-            self.error = f"yt-dlp.py not found at {YTDLP_SCRIPT}"
+            self.error = f"yt-dlp.py not found (looked in {ytdlp})"
             self.message = self.error
             return
         cmd, output_base = self._yt_dlp_cmd()

@@ -15,8 +15,9 @@
 
 1. Open **`releases/Downpour.dmg`** (or download from GitHub Releases)
 2. Double-click **`Install Downpour.command`**
-3. In Safari: **Settings → Extensions** → turn on **Downpour**
-4. Allow the extension on the sites you use
+3. Choose **Safari**, **Chrome**, or **Both**
+4. **Safari:** **Settings → Extensions** → turn on **Downpour**
+5. **Chrome:** follow the prompts to load the unpacked extension from `chrome://extensions`
 
 **First launch:** if macOS blocks the app, right-click **Downpour.app → Open → Open** once.
 
