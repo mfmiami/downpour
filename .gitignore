@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode / Swift
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Local dev artifacts
+.icon-venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+
+# Large bundled runtime deps (download locally — see scripts/bootstrap-mac-deps.sh)
+safari-app/**/Resources/python/
+safari-app/**/Resources/ffmpeg/
+
+# Archives
+*.xcarchive

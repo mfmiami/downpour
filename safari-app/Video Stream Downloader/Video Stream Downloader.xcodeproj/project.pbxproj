@@ -1,0 +1,1101 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		BF2D5C0E2FE35BD900582A7E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C0D2FE35BD900582A7E /* AppDelegate.swift */; };
+		BF2D5C102FE35BD900582A7E /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C0F2FE35BD900582A7E /* SceneDelegate.swift */; };
+		BF2D5C132FE35BD900582A7E /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C112FE35BD900582A7E /* LaunchScreen.storyboard */; };
+		BF2D5C162FE35BD900582A7E /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C142FE35BD900582A7E /* Main.storyboard */; };
+		BF2D5C1F2FE35BD900582A7E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C1E2FE35BD900582A7E /* AppDelegate.swift */; };
+		BF2D5C222FE35BD900582A7E /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C202FE35BD900582A7E /* Main.storyboard */; };
+		BF2D5C292FE35BD900582A7E /* Downpour Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BF2D5C282FE35BD900582A7E /* Downpour Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BF2D5C332FE35BD900582A7E /* Downpour Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BF2D5C322FE35BD900582A7E /* Downpour Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BF2D5C382FE35BD900582A7E /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5BFD2FE35BD800582A7E /* Main.html */; };
+		BF2D5C392FE35BD900582A7E /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5BFD2FE35BD800582A7E /* Main.html */; };
+		BF2D5C3A2FE35BD900582A7E /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5BFF2FE35BD800582A7E /* Icon.png */; };
+		BF2D5C3B2FE35BD900582A7E /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5BFF2FE35BD800582A7E /* Icon.png */; };
+		BF2D5C3C2FE35BD900582A7E /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C002FE35BD800582A7E /* Style.css */; };
+		BF2D5C3D2FE35BD900582A7E /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C002FE35BD800582A7E /* Style.css */; };
+		BF2D5C3E2FE35BD900582A7E /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C012FE35BD800582A7E /* Script.js */; };
+		BF2D5C3F2FE35BD900582A7E /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C012FE35BD800582A7E /* Script.js */; };
+		BF2D5C402FE35BD900582A7E /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C022FE35BD800582A7E /* ViewController.swift */; };
+		BF2D5C412FE35BD900582A7E /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C022FE35BD800582A7E /* ViewController.swift */; };
+		BF2D5C422FE35BD900582A7E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C032FE35BD900582A7E /* Assets.xcassets */; };
+		BF2D5C432FE35BD900582A7E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C032FE35BD900582A7E /* Assets.xcassets */; };
+		BF2D5C442FE35BD900582A7E /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C052FE35BD900582A7E /* SafariWebExtensionHandler.swift */; };
+		BF2D5C452FE35BD900582A7E /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C052FE35BD900582A7E /* SafariWebExtensionHandler.swift */; };
+		BF2D5C5E2FE35BD900582A7E /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C572FE35BD900582A7E /* popup.js */; };
+		BF2D5C5F2FE35BD900582A7E /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C582FE35BD900582A7E /* background.js */; };
+		BF2D5C602FE35BD900582A7E /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C592FE35BD900582A7E /* popup.html */; };
+		BF2D5C612FE35BD900582A7E /* mux.min.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C5A2FE35BD900582A7E /* mux.min.js */; };
+		BF2D5C622FE35BD900582A7E /* icons in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C5B2FE35BD900582A7E /* icons */; };
+		BF2D5C632FE35BD900582A7E /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C5C2FE35BD900582A7E /* manifest.json */; };
+		BF2D5C642FE35BD900582A7E /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C5D2FE35BD900582A7E /* content.js */; };
+		BF2D5C652FE35BD900582A7E /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C572FE35BD900582A7E /* popup.js */; };
+		BF2D5C662FE35BD900582A7E /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C582FE35BD900582A7E /* background.js */; };
+		BF2D5C672FE35BD900582A7E /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C592FE35BD900582A7E /* popup.html */; };
+		BF2D5C682FE35BD900582A7E /* mux.min.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C5A2FE35BD900582A7E /* mux.min.js */; };
+		BF2D5C692FE35BD900582A7E /* icons in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C5B2FE35BD900582A7E /* icons */; };
+		BF2D5C6A2FE35BD900582A7E /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C5C2FE35BD900582A7E /* manifest.json */; };
+		BF2D5C6B2FE35BD900582A7E /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C5D2FE35BD900582A7E /* content.js */; };
+		BF2D5C842FE35BD900582A7E /* platforms.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C852FE35BD900582A7E /* platforms.js */; };
+		BF2D5C862FE35BD900582A7E /* overlay.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C872FE35BD900582A7E /* overlay.js */; };
+		BF2D5C882FE35BD900582A7E /* platforms.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C852FE35BD900582A7E /* platforms.js */; };
+		BF2D5C892FE35BD900582A7E /* overlay.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C872FE35BD900582A7E /* overlay.js */; };
+		BF2D5C8A2FE35BD900582A7E /* instagram.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C8B2FE35BD900582A7E /* instagram.js */; };
+		BF2D5C8C2FE35BD900582A7E /* instagram-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C8D2FE35BD900582A7E /* instagram-injected.js */; };
+		BF2D5C8E2FE35BD900582A7E /* instagram.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C8B2FE35BD900582A7E /* instagram.js */; };
+		BF2D5C8F2FE35BD900582A7E /* instagram-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C8D2FE35BD900582A7E /* instagram-injected.js */; };
+		BF2D5C902FE35BD900582A7E /* social-extract.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C912FE35BD900582A7E /* social-extract.js */; };
+		BF2D5C922FE35BD900582A7E /* social-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C932FE35BD900582A7E /* social-injected.js */; };
+		BF2D5C942FE35BD900582A7E /* social-extract.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C912FE35BD900582A7E /* social-extract.js */; };
+		BF2D5C952FE35BD900582A7E /* social-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C932FE35BD900582A7E /* social-injected.js */; };
+		BF2D5C962FE35BD900582A7E /* tiktok-extract.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C972FE35BD900582A7E /* tiktok-extract.js */; };
+		BF2D5C982FE35BD900582A7E /* tiktok-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C992FE35BD900582A7E /* tiktok-injected.js */; };
+		BF2D5C9A2FE35BD900582A7E /* tiktok-extract.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C972FE35BD900582A7E /* tiktok-extract.js */; };
+		BF2D5C9B2FE35BD900582A7E /* tiktok-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C992FE35BD900582A7E /* tiktok-injected.js */; };
+		BF2D5C712FE35BD900582A7E /* YoutubeJobManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C702FE35BD900582A7E /* YoutubeJobManager.swift */; };
+		BF2D5C722FE35BD900582A7E /* YoutubeJobManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C702FE35BD900582A7E /* YoutubeJobManager.swift */; };
+		BF2D5C742FE35BD900582A7E /* YoutubeJobRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C732FE35BD900582A7E /* YoutubeJobRunner.swift */; };
+		BF2D5C792FE35BD900582A7E /* python in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C782FE35BD900582A7E /* python */; };
+		BF2D5C7B2FE35BD900582A7E /* yt-dlp.py in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C7A2FE35BD900582A7E /* yt-dlp.py */; };
+		BF2D5C7D2FE35BD900582A7E /* ffmpeg in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C7C2FE35BD900582A7E /* ffmpeg */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BF2D5C2A2FE35BD900582A7E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BF2D5BF72FE35BD800582A7E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BF2D5C272FE35BD900582A7E;
+			remoteInfo = "Downpour Extension (iOS)";
+		};
+		BF2D5C342FE35BD900582A7E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BF2D5BF72FE35BD800582A7E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BF2D5C312FE35BD900582A7E;
+			remoteInfo = "Downpour Extension (macOS)";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BF2D5C4B2FE35BD900582A7E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BF2D5C292FE35BD900582A7E /* Downpour Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C522FE35BD900582A7E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BF2D5C332FE35BD900582A7E /* Downpour Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		BF2D5BFE2FE35BD800582A7E /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		BF2D5BFF2FE35BD800582A7E /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		BF2D5C002FE35BD800582A7E /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		BF2D5C012FE35BD800582A7E /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		BF2D5C022FE35BD800582A7E /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		BF2D5C032FE35BD900582A7E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BF2D5C052FE35BD900582A7E /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		BF2D5C0A2FE35BD900582A7E /* Downpour.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Downpour.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF2D5C0D2FE35BD900582A7E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		BF2D5C0F2FE35BD900582A7E /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		BF2D5C122FE35BD900582A7E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		BF2D5C152FE35BD900582A7E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		BF2D5C172FE35BD900582A7E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BF2D5C1C2FE35BD900582A7E /* Downpour.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Downpour.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF2D5C1E2FE35BD900582A7E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		BF2D5C212FE35BD900582A7E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		BF2D5C232FE35BD900582A7E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BF2D5C282FE35BD900582A7E /* Downpour Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Downpour Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF2D5C2D2FE35BD900582A7E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BF2D5C322FE35BD900582A7E /* Downpour Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Downpour Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF2D5C372FE35BD900582A7E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BF2D5C572FE35BD900582A7E /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = popup.js; path = Resources/popup.js; sourceTree = "<group>"; };
+		BF2D5C582FE35BD900582A7E /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = background.js; path = Resources/background.js; sourceTree = "<group>"; };
+		BF2D5C592FE35BD900582A7E /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = popup.html; path = Resources/popup.html; sourceTree = "<group>"; };
+		BF2D5C5A2FE35BD900582A7E /* mux.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = mux.min.js; path = Resources/mux.min.js; sourceTree = "<group>"; };
+		BF2D5C5B2FE35BD900582A7E /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = Resources/icons; sourceTree = "<group>"; };
+		BF2D5C5C2FE35BD900582A7E /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
+		BF2D5C5D2FE35BD900582A7E /* content.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = content.js; path = Resources/content.js; sourceTree = "<group>"; };
+		BF2D5C852FE35BD900582A7E /* platforms.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = platforms.js; path = Resources/platforms.js; sourceTree = "<group>"; };
+		BF2D5C872FE35BD900582A7E /* overlay.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = overlay.js; path = Resources/overlay.js; sourceTree = "<group>"; };
+		BF2D5C8B2FE35BD900582A7E /* instagram.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = instagram.js; path = Resources/instagram.js; sourceTree = "<group>"; };
+		BF2D5C8D2FE35BD900582A7E /* instagram-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "instagram-injected.js"; path = "Resources/instagram-injected.js"; sourceTree = "<group>"; };
+		BF2D5C912FE35BD900582A7E /* social-extract.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "social-extract.js"; path = "Resources/social-extract.js"; sourceTree = "<group>"; };
+		BF2D5C932FE35BD900582A7E /* social-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "social-injected.js"; path = "Resources/social-injected.js"; sourceTree = "<group>"; };
+		BF2D5C972FE35BD900582A7E /* tiktok-extract.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "tiktok-extract.js"; path = "Resources/tiktok-extract.js"; sourceTree = "<group>"; };
+		BF2D5C992FE35BD900582A7E /* tiktok-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "tiktok-injected.js"; path = "Resources/tiktok-injected.js"; sourceTree = "<group>"; };
+		BF2D5C702FE35BD900582A7E /* YoutubeJobManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoutubeJobManager.swift; sourceTree = "<group>"; };
+		BF2D5C732FE35BD900582A7E /* YoutubeJobRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoutubeJobRunner.swift; sourceTree = "<group>"; };
+		BF2D5C782FE35BD900582A7E /* python */ = {isa = PBXFileReference; lastKnownFileType = folder; path = python; sourceTree = "<group>"; };
+		BF2D5C7A2FE35BD900582A7E /* yt-dlp.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = "yt-dlp.py"; sourceTree = "<group>"; };
+		BF2D5C7C2FE35BD900582A7E /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ffmpeg; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BF2D5C072FE35BD900582A7E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C192FE35BD900582A7E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C252FE35BD900582A7E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C2F2FE35BD900582A7E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BF2D5BF62FE35BD800582A7E = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C772FE35BD900582A7E /* Shared */,
+				BF2D5BFB2FE35BD800582A7E /* Shared (App) */,
+				BF2D5C042FE35BD900582A7E /* Shared (Extension) */,
+				BF2D5C0C2FE35BD900582A7E /* iOS (App) */,
+				BF2D5C1D2FE35BD900582A7E /* macOS (App) */,
+				BF2D5C2C2FE35BD900582A7E /* iOS (Extension) */,
+				BF2D5C362FE35BD900582A7E /* macOS (Extension) */,
+				BF2D5C0B2FE35BD900582A7E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BF2D5BFB2FE35BD800582A7E /* Shared (App) */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C022FE35BD800582A7E /* ViewController.swift */,
+				BF2D5C032FE35BD900582A7E /* Assets.xcassets */,
+				BF2D5BFC2FE35BD800582A7E /* Resources */,
+			);
+			path = "Shared (App)";
+			sourceTree = "<group>";
+		};
+		BF2D5BFC2FE35BD800582A7E /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5BFD2FE35BD800582A7E /* Main.html */,
+				BF2D5BFF2FE35BD800582A7E /* Icon.png */,
+				BF2D5C002FE35BD800582A7E /* Style.css */,
+				BF2D5C012FE35BD800582A7E /* Script.js */,
+				BF2D5C782FE35BD900582A7E /* python */,
+				BF2D5C7C2FE35BD900582A7E /* ffmpeg */,
+				BF2D5C7A2FE35BD900582A7E /* yt-dlp.py */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		BF2D5C772FE35BD900582A7E /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C702FE35BD900582A7E /* YoutubeJobManager.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		BF2D5C042FE35BD900582A7E /* Shared (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C562FE35BD900582A7E /* Resources */,
+				BF2D5C052FE35BD900582A7E /* SafariWebExtensionHandler.swift */,
+			);
+			path = "Shared (Extension)";
+			sourceTree = "<group>";
+		};
+		BF2D5C0B2FE35BD900582A7E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C0A2FE35BD900582A7E /* Downpour.app */,
+				BF2D5C1C2FE35BD900582A7E /* Downpour.app */,
+				BF2D5C282FE35BD900582A7E /* Downpour Extension.appex */,
+				BF2D5C322FE35BD900582A7E /* Downpour Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BF2D5C0C2FE35BD900582A7E /* iOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C0D2FE35BD900582A7E /* AppDelegate.swift */,
+				BF2D5C0F2FE35BD900582A7E /* SceneDelegate.swift */,
+				BF2D5C112FE35BD900582A7E /* LaunchScreen.storyboard */,
+				BF2D5C142FE35BD900582A7E /* Main.storyboard */,
+				BF2D5C172FE35BD900582A7E /* Info.plist */,
+			);
+			path = "iOS (App)";
+			sourceTree = "<group>";
+		};
+		BF2D5C1D2FE35BD900582A7E /* macOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C1E2FE35BD900582A7E /* AppDelegate.swift */,
+				BF2D5C732FE35BD900582A7E /* YoutubeJobRunner.swift */,
+				BF2D5C202FE35BD900582A7E /* Main.storyboard */,
+				BF2D5C232FE35BD900582A7E /* Info.plist */,
+			);
+			path = "macOS (App)";
+			sourceTree = "<group>";
+		};
+		BF2D5C2C2FE35BD900582A7E /* iOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C2D2FE35BD900582A7E /* Info.plist */,
+			);
+			path = "iOS (Extension)";
+			sourceTree = "<group>";
+		};
+		BF2D5C362FE35BD900582A7E /* macOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C372FE35BD900582A7E /* Info.plist */,
+			);
+			path = "macOS (Extension)";
+			sourceTree = "<group>";
+		};
+		BF2D5C562FE35BD900582A7E /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				BF2D5C572FE35BD900582A7E /* popup.js */,
+				BF2D5C582FE35BD900582A7E /* background.js */,
+				BF2D5C592FE35BD900582A7E /* popup.html */,
+				BF2D5C5A2FE35BD900582A7E /* mux.min.js */,
+				BF2D5C5B2FE35BD900582A7E /* icons */,
+				BF2D5C5C2FE35BD900582A7E /* manifest.json */,
+				BF2D5C5D2FE35BD900582A7E /* content.js */,
+				BF2D5C852FE35BD900582A7E /* platforms.js */,
+				BF2D5C8B2FE35BD900582A7E /* instagram.js */,
+				BF2D5C8D2FE35BD900582A7E /* instagram-injected.js */,
+				BF2D5C912FE35BD900582A7E /* social-extract.js */,
+				BF2D5C932FE35BD900582A7E /* social-injected.js */,
+				BF2D5C972FE35BD900582A7E /* tiktok-extract.js */,
+				BF2D5C992FE35BD900582A7E /* tiktok-injected.js */,
+				BF2D5C872FE35BD900582A7E /* overlay.js */,
+			);
+			name = Resources;
+			path = "Shared (Extension)";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BF2D5C092FE35BD900582A7E /* Downpour (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF2D5C4C2FE35BD900582A7E /* Build configuration list for PBXNativeTarget "Downpour (iOS)" */;
+			buildPhases = (
+				BF2D5C062FE35BD900582A7E /* Sources */,
+				BF2D5C072FE35BD900582A7E /* Frameworks */,
+				BF2D5C082FE35BD900582A7E /* Resources */,
+				BF2D5C4B2FE35BD900582A7E /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BF2D5C2B2FE35BD900582A7E /* PBXTargetDependency */,
+			);
+			name = "Downpour (iOS)";
+			packageProductDependencies = (
+			);
+			productName = "Downpour (iOS)";
+			productReference = BF2D5C0A2FE35BD900582A7E /* Downpour.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BF2D5C1B2FE35BD900582A7E /* Downpour (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF2D5C532FE35BD900582A7E /* Build configuration list for PBXNativeTarget "Downpour (macOS)" */;
+			buildPhases = (
+				BF2D5C182FE35BD900582A7E /* Sources */,
+				BF2D5C192FE35BD900582A7E /* Frameworks */,
+				BF2D5C1A2FE35BD900582A7E /* Resources */,
+				BF2D5C522FE35BD900582A7E /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BF2D5C352FE35BD900582A7E /* PBXTargetDependency */,
+			);
+			name = "Downpour (macOS)";
+			packageProductDependencies = (
+			);
+			productName = "Downpour (macOS)";
+			productReference = BF2D5C1C2FE35BD900582A7E /* Downpour.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BF2D5C272FE35BD900582A7E /* Downpour Extension (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF2D5C482FE35BD900582A7E /* Build configuration list for PBXNativeTarget "Downpour Extension (iOS)" */;
+			buildPhases = (
+				BF2D5C242FE35BD900582A7E /* Sources */,
+				BF2D5C252FE35BD900582A7E /* Frameworks */,
+				BF2D5C262FE35BD900582A7E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Downpour Extension (iOS)";
+			packageProductDependencies = (
+			);
+			productName = "Downpour Extension (iOS)";
+			productReference = BF2D5C282FE35BD900582A7E /* Downpour Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		BF2D5C312FE35BD900582A7E /* Downpour Extension (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF2D5C4F2FE35BD900582A7E /* Build configuration list for PBXNativeTarget "Downpour Extension (macOS)" */;
+			buildPhases = (
+				BF2D5C2E2FE35BD900582A7E /* Sources */,
+				BF2D5C2F2FE35BD900582A7E /* Frameworks */,
+				BF2D5C302FE35BD900582A7E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Downpour Extension (macOS)";
+			packageProductDependencies = (
+			);
+			productName = "Downpour Extension (macOS)";
+			productReference = BF2D5C322FE35BD900582A7E /* Downpour Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BF2D5BF72FE35BD800582A7E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					BF2D5C092FE35BD900582A7E = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					BF2D5C1B2FE35BD900582A7E = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					BF2D5C272FE35BD900582A7E = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					BF2D5C312FE35BD900582A7E = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = BF2D5BFA2FE35BD800582A7E /* Build configuration list for PBXProject "Downpour" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = BF2D5BF62FE35BD800582A7E;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = BF2D5C0B2FE35BD900582A7E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BF2D5C092FE35BD900582A7E /* Downpour (iOS) */,
+				BF2D5C1B2FE35BD900582A7E /* Downpour (macOS) */,
+				BF2D5C272FE35BD900582A7E /* Downpour Extension (iOS) */,
+				BF2D5C312FE35BD900582A7E /* Downpour Extension (macOS) */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BF2D5C082FE35BD900582A7E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF2D5C3A2FE35BD900582A7E /* Icon.png in Resources */,
+				BF2D5C132FE35BD900582A7E /* LaunchScreen.storyboard in Resources */,
+				BF2D5C382FE35BD900582A7E /* Main.html in Resources */,
+				BF2D5C3E2FE35BD900582A7E /* Script.js in Resources */,
+				BF2D5C422FE35BD900582A7E /* Assets.xcassets in Resources */,
+				BF2D5C162FE35BD900582A7E /* Main.storyboard in Resources */,
+				BF2D5C3C2FE35BD900582A7E /* Style.css in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C1A2FE35BD900582A7E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF2D5C3B2FE35BD900582A7E /* Icon.png in Resources */,
+				BF2D5C3D2FE35BD900582A7E /* Style.css in Resources */,
+				BF2D5C222FE35BD900582A7E /* Main.storyboard in Resources */,
+				BF2D5C3F2FE35BD900582A7E /* Script.js in Resources */,
+				BF2D5C432FE35BD900582A7E /* Assets.xcassets in Resources */,
+				BF2D5C392FE35BD900582A7E /* Main.html in Resources */,
+				BF2D5C792FE35BD900582A7E /* python in Resources */,
+				BF2D5C7B2FE35BD900582A7E /* yt-dlp.py in Resources */,
+				BF2D5C7D2FE35BD900582A7E /* ffmpeg in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C262FE35BD900582A7E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF2D5C662FE35BD900582A7E /* background.js in Resources */,
+				BF2D5C682FE35BD900582A7E /* mux.min.js in Resources */,
+				BF2D5C672FE35BD900582A7E /* popup.html in Resources */,
+				BF2D5C692FE35BD900582A7E /* icons in Resources */,
+				BF2D5C6A2FE35BD900582A7E /* manifest.json in Resources */,
+				BF2D5C6B2FE35BD900582A7E /* content.js in Resources */,
+				BF2D5C842FE35BD900582A7E /* platforms.js in Resources */,
+				BF2D5C8A2FE35BD900582A7E /* instagram.js in Resources */,
+				BF2D5C8C2FE35BD900582A7E /* instagram-injected.js in Resources */,
+				BF2D5C902FE35BD900582A7E /* social-extract.js in Resources */,
+				BF2D5C922FE35BD900582A7E /* social-injected.js in Resources */,
+				BF2D5C962FE35BD900582A7E /* tiktok-extract.js in Resources */,
+				BF2D5C982FE35BD900582A7E /* tiktok-injected.js in Resources */,
+				BF2D5C862FE35BD900582A7E /* overlay.js in Resources */,
+				BF2D5C652FE35BD900582A7E /* popup.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C302FE35BD900582A7E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF2D5C5F2FE35BD900582A7E /* background.js in Resources */,
+				BF2D5C612FE35BD900582A7E /* mux.min.js in Resources */,
+				BF2D5C602FE35BD900582A7E /* popup.html in Resources */,
+				BF2D5C622FE35BD900582A7E /* icons in Resources */,
+				BF2D5C632FE35BD900582A7E /* manifest.json in Resources */,
+				BF2D5C642FE35BD900582A7E /* content.js in Resources */,
+				BF2D5C882FE35BD900582A7E /* platforms.js in Resources */,
+				BF2D5C8E2FE35BD900582A7E /* instagram.js in Resources */,
+				BF2D5C8F2FE35BD900582A7E /* instagram-injected.js in Resources */,
+				BF2D5C942FE35BD900582A7E /* social-extract.js in Resources */,
+				BF2D5C952FE35BD900582A7E /* social-injected.js in Resources */,
+				BF2D5C9A2FE35BD900582A7E /* tiktok-extract.js in Resources */,
+				BF2D5C9B2FE35BD900582A7E /* tiktok-injected.js in Resources */,
+				BF2D5C892FE35BD900582A7E /* overlay.js in Resources */,
+				BF2D5C5E2FE35BD900582A7E /* popup.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BF2D5C062FE35BD900582A7E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF2D5C402FE35BD900582A7E /* ViewController.swift in Sources */,
+				BF2D5C0E2FE35BD900582A7E /* AppDelegate.swift in Sources */,
+				BF2D5C102FE35BD900582A7E /* SceneDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C182FE35BD900582A7E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF2D5C412FE35BD900582A7E /* ViewController.swift in Sources */,
+				BF2D5C1F2FE35BD900582A7E /* AppDelegate.swift in Sources */,
+				BF2D5C722FE35BD900582A7E /* YoutubeJobManager.swift in Sources */,
+				BF2D5C742FE35BD900582A7E /* YoutubeJobRunner.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C242FE35BD900582A7E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF2D5C442FE35BD900582A7E /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF2D5C2E2FE35BD900582A7E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF2D5C452FE35BD900582A7E /* SafariWebExtensionHandler.swift in Sources */,
+				BF2D5C712FE35BD900582A7E /* YoutubeJobManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BF2D5C2B2FE35BD900582A7E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BF2D5C272FE35BD900582A7E /* Downpour Extension (iOS) */;
+			targetProxy = BF2D5C2A2FE35BD900582A7E /* PBXContainerItemProxy */;
+		};
+		BF2D5C352FE35BD900582A7E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BF2D5C312FE35BD900582A7E /* Downpour Extension (macOS) */;
+			targetProxy = BF2D5C342FE35BD900582A7E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		BF2D5BFD2FE35BD800582A7E /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				BF2D5BFE2FE35BD800582A7E /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		BF2D5C112FE35BD900582A7E /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				BF2D5C122FE35BD900582A7E /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		BF2D5C142FE35BD900582A7E /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				BF2D5C152FE35BD900582A7E /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		BF2D5C202FE35BD900582A7E /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				BF2D5C212FE35BD900582A7E /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		BF2D5C462FE35BD900582A7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		BF2D5C472FE35BD900582A7E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		BF2D5C492FE35BD900582A7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = UMP5KZY6LS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Downpour;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.12.3;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dtek.videostreamdownloader.Extension;
+				PRODUCT_NAME = "Downpour Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BF2D5C4A2FE35BD900582A7E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = UMP5KZY6LS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Downpour;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.12.3;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dtek.videostreamdownloader.Extension;
+				PRODUCT_NAME = "Downpour Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		BF2D5C4D2FE35BD900582A7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = UMP5KZY6LS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Downpour;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.12.3;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dtek.videostreamdownloader;
+				PRODUCT_NAME = Downpour;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BF2D5C4E2FE35BD900582A7E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = UMP5KZY6LS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Downpour;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.12.3;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dtek.videostreamdownloader;
+				PRODUCT_NAME = Downpour;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		BF2D5C502FE35BD900582A7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = UMP5KZY6LS;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				CODE_SIGN_ENTITLEMENTS = "macOS.entitlements";
+				ENABLE_USER_SELECTED_FILES = readonly;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = "i386 x86_64";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Downpour;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MARKETING_VERSION = 2.12.3;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dtek.videostreamdownloader.Extension;
+				PRODUCT_NAME = "Downpour Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BF2D5C512FE35BD900582A7E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				ARCHS = arm64;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = UMP5KZY6LS;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				CODE_SIGN_ENTITLEMENTS = "macOS.entitlements";
+				ENABLE_USER_SELECTED_FILES = readonly;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = "i386 x86_64";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Downpour;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MARKETING_VERSION = 2.12.3;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dtek.videostreamdownloader.Extension;
+				PRODUCT_NAME = "Downpour Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BF2D5C542FE35BD900582A7E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "macOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = UMP5KZY6LS;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = "i386 x86_64";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Downpour;
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MARKETING_VERSION = 2.12.3;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dtek.videostreamdownloader;
+				PRODUCT_NAME = Downpour;
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BF2D5C552FE35BD900582A7E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "macOS.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = UMP5KZY6LS;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				"EXCLUDED_ARCHS[sdk=macosx*]" = "i386 x86_64";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Downpour;
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MARKETING_VERSION = 2.12.3;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dtek.videostreamdownloader;
+				PRODUCT_NAME = Downpour;
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BF2D5BFA2FE35BD800582A7E /* Build configuration list for PBXProject "Downpour" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF2D5C462FE35BD900582A7E /* Debug */,
+				BF2D5C472FE35BD900582A7E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF2D5C482FE35BD900582A7E /* Build configuration list for PBXNativeTarget "Downpour Extension (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF2D5C492FE35BD900582A7E /* Debug */,
+				BF2D5C4A2FE35BD900582A7E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF2D5C4C2FE35BD900582A7E /* Build configuration list for PBXNativeTarget "Downpour (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF2D5C4D2FE35BD900582A7E /* Debug */,
+				BF2D5C4E2FE35BD900582A7E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF2D5C4F2FE35BD900582A7E /* Build configuration list for PBXNativeTarget "Downpour Extension (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF2D5C502FE35BD900582A7E /* Debug */,
+				BF2D5C512FE35BD900582A7E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF2D5C532FE35BD900582A7E /* Build configuration list for PBXNativeTarget "Downpour (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF2D5C542FE35BD900582A7E /* Debug */,
+				BF2D5C552FE35BD900582A7E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BF2D5BF72FE35BD800582A7E /* Project object */;
+}
