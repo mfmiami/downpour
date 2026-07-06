@@ -172,7 +172,8 @@
 
   function largeEnough(el) {
     const r = el.getBoundingClientRect();
-    return r.width >= MIN_SIDE && r.height >= MIN_SIDE;
+    const min = platform === "twitter" || platform === "instagram" ? 120 : MIN_SIDE;
+    return r.width >= min && r.height >= min;
   }
 
   function instagramCdnHint(el) {
@@ -234,6 +235,33 @@
     if (!btnHost) return false;
     const path = typeof e.composedPath === "function" ? e.composedPath() : [];
     return path.includes(btnHost);
+  }
+
+  function climbToMedia(el) {
+    const seen = new Set();
+    let node = el;
+    while (node && !seen.has(node)) {
+      seen.add(node);
+      if (qualifies(node)) return node;
+      if (node.parentElement) {
+        node = node.parentElement;
+      } else {
+        const root = node.getRootNode();
+        node = root instanceof ShadowRoot ? root.host : null;
+      }
+    }
+    return null;
+  }
+
+  function mediaFromPoint(x, y) {
+    const stack = typeof document.elementsFromPoint === "function"
+      ? document.elementsFromPoint(x, y)
+      : [document.elementFromPoint(x, y)].filter(Boolean);
+    for (const el of stack) {
+      const hit = climbToMedia(el);
+      if (hit) return hit;
+    }
+    return null;
   }
 
   function buildButton() {
@@ -515,6 +543,9 @@
   }
 
   function mediaAtPoint(x, y) {
+    const pointed = mediaFromPoint(x, y);
+    if (platform !== "tiktok" && pointed) return pointed;
+
     if (platform === "tiktok") {
       const tt = tikTokVideoForPointer(x, y);
       if (tt) return tt;
@@ -537,8 +568,10 @@
           best = el;
         }
       }
-      return best;
+      return best || pointed;
     }
+
+    if (pointed) return pointed;
 
     // Instagram / X: smallest tracked rect under the cursor (front-most).
     let best = null;
@@ -1112,6 +1145,7 @@
     if (!document.body) return;
     platform = currentPlatform();
     if (!shouldRunOverlay()) return;
+    document.documentElement.dataset.downpourOverlay = platform;
     buildButton();
     rescan();
     hookHistory();
@@ -1151,9 +1185,28 @@
     }
   }
 
+  function tryBoot() {
+    if (window.top !== window) return;
+    init();
+  }
+
   function boot() {
-    if (document.body) init();
-    else window.addEventListener("DOMContentLoaded", init, { once: true });
+    tryBoot();
+    if (!document.body) {
+      const bodyWait = new MutationObserver(() => {
+        if (document.body) {
+          bodyWait.disconnect();
+          tryBoot();
+        }
+      });
+      bodyWait.observe(document.documentElement, { childList: true, subtree: true });
+      window.addEventListener("DOMContentLoaded", tryBoot, { once: true });
+    }
+    window.addEventListener("pageshow", tryBoot);
+    window.addEventListener("focus", () => {
+      refreshPlatform();
+      rescan();
+    });
   }
 
   boot();
