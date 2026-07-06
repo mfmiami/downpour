@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.5"
+HOST_VERSION = "1.0.6"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
@@ -309,6 +309,14 @@ def youtube_status_payload(state: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def is_social_media_url(url: str) -> bool:
+    lower = url.lower()
+    return any(
+        host in lower
+        for host in ("tiktok.com", "instagram.com", "twitter.com", "x.com")
+    )
+
+
 def build_yt_dlp_cmd(url: str, filename: str, quality: str) -> tuple[list[str], str]:
     ytdlp = resolve_ytdlp_script()
     output_base = unique_path(DOWNLOADS, filename).with_suffix("").as_posix()
@@ -317,6 +325,13 @@ def build_yt_dlp_cmd(url: str, filename: str, quality: str) -> tuple[list[str], 
         "--no-playlist", "--newline",
         "-o", output_base + ".%(ext)s",
     ]
+    if is_social_media_url(url):
+        cmd.extend([
+            "--cookies-from-browser", "chrome",
+            "--impersonate", "chrome-133:macos-15",
+            "--retries", "3",
+            "--fragment-retries", "3",
+        ])
     ffmpeg_dir = resolve_ffmpeg_dir()
     if ffmpeg_dir:
         cmd.extend(["--ffmpeg-location", ffmpeg_dir])

@@ -8,6 +8,14 @@ const DownpourPlatforms = (function () {
     }
   }
 
+  function forEachDeep(root, selector, fn) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll(selector).forEach(fn);
+    root.querySelectorAll("*").forEach((el) => {
+      if (el.shadowRoot) forEachDeep(el.shadowRoot, selector, fn);
+    });
+  }
+
   function isTikTokHost(url) {
     const host = hostOf(url);
     return host === "tiktok.com" || host.endsWith(".tiktok.com")
@@ -791,6 +799,7 @@ const DownpourPlatforms = (function () {
   }
 
   return {
+    forEachDeep,
     getSocialPlatform,
     getOverlayPlatform,
     isOverlayHost,

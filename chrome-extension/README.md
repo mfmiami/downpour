@@ -20,7 +20,8 @@ Chrome port of the Downpour video downloader. Shares the same content scripts, o
 | Feature | Chrome (no native host) | With native host |
 |---------|-------------------------|------------------|
 | Generic / erome direct video | ✓ via page fetch + `chrome.downloads` | ✓ |
-| Instagram / TikTok / X overlay | ✓ | ✓ |
+| Instagram / TikTok / X overlay | ✓ (hover save button on video) | ✓ |
+| Generic site video overlay | ✓ | ✓ |
 | Popup stream / direct downloads | ✓ | ✓ |
 | YouTube yt-dlp (720p / best) | ✗ | ✓ |
 | Large chunked saves | ✓ via `chrome.downloads` | ✓ |

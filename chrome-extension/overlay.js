@@ -224,10 +224,16 @@
   function rescan() {
     const next = [];
     const selector = platform === "instagram" ? "img, video" : "video";
-    document.querySelectorAll(selector).forEach((el) => {
+    DownpourPlatforms.forEachDeep(document, selector, (el) => {
       if (qualifies(el)) next.push(el);
     });
     tracked = next;
+  }
+
+  function pointerOnOverlay(e) {
+    if (!btnHost) return false;
+    const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+    return path.includes(btnHost);
   }
 
   function buildButton() {
@@ -555,8 +561,7 @@
     if (pending) return;
     pending = requestAnimationFrame(() => {
       pending = null;
-      const onBtn = btnHost && (e.target === btnHost || btnHost.contains(e.target));
-      if (onBtn) {
+      if (pointerOnOverlay(e)) {
         clearTimeout(hideTimer);
         return;
       }
@@ -1103,6 +1108,7 @@
   }
 
   function init() {
+    if (window.top !== window) return;
     if (!document.body) return;
     platform = currentPlatform();
     if (!shouldRunOverlay()) return;
@@ -1116,6 +1122,16 @@
         init._t = setTimeout(rescan, 300);
       });
       mo.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (!init._rescanInterval) {
+      init._rescanInterval = setInterval(() => {
+        if (!DownpourBridge.alive()) return;
+        if (platform) rescan();
+      }, 2000);
+      DownpourBridge.onInvalidated(() => {
+        if (init._rescanInterval) clearInterval(init._rescanInterval);
+      });
     }
 
     resolveTabId(() => {});
