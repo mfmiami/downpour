@@ -265,6 +265,12 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function parseProgressFromMessage(message) {
+  if (!message) return null;
+  const match = /(\d+(?:\.\d+)?)\s*%/.exec(String(message));
+  return match ? Math.min(99, Math.floor(parseFloat(match[1]))) : null;
+}
+
 async function runYtDlpNativeJob(job) {
   let token = null;
   try {
@@ -285,17 +291,19 @@ async function runYtDlpNativeJob(job) {
       ensureNotCancelled(job);
       const status = await sendNative({ type: "youtubeStatus", token });
       if (!status) throw new Error("yt-dlp status failed");
+      if (status.error && !status.state) throw new Error(status.error);
       if (status.state === "done") {
         update(job, { state: "done", progress: 100, message: `Saved → ${status.path}`, path: status.path });
         return;
       }
       if (status.state === "error") throw new Error(status.error || "yt-dlp failed");
       if (status.state === "cancelled") throw new Error("cancelled");
-      update(job, {
-        progress: status.progress != null ? status.progress : job.progress,
-        message: status.message || job.message
-      });
-      await sleep(1000);
+      const message = status.message || job.message || "downloading with yt-dlp…";
+      const progress = status.progress != null
+        ? status.progress
+        : (parseProgressFromMessage(message) ?? job.progress ?? 0);
+      update(job, { state: "running", progress, message });
+      await sleep(500);
     }
   } catch (e) {
     if (token) try { await sendNative({ type: "youtubeAbort", token }); } catch (_) {}
@@ -1256,7 +1264,7 @@ async function runYoutubeJob(job) {
       const watchUrl = resolveYtDlpWatchUrl(job);
       if (watchUrl) job.watchUrl = watchUrl;
     }
-    update(job, { state: "running", progress: 0, message: "downloading with yt-dlp…" });
+    update(job, { state: "running", progress: 0, message: "starting yt-dlp…" });
     await runYtDlpNativeJob(job);
   } catch (e) {
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
@@ -1290,7 +1298,7 @@ async function runYtDlpJob(job) {
       const watchUrl = resolveYtDlpWatchUrl(job);
       if (watchUrl) job.watchUrl = watchUrl;
     }
-    update(job, { state: "running", progress: 0, message: "downloading with yt-dlp…" });
+    update(job, { state: "running", progress: 0, message: "starting yt-dlp…" });
     await runYtDlpNativeJob(job);
   } catch (e) {
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });

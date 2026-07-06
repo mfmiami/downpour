@@ -52,6 +52,13 @@ function shortJobMessage(message) {
     .slice(0, 72);
 }
 
+function progressFromJob(job) {
+  if (typeof job.progress === "number" && job.progress > 0) return job.progress;
+  if (!job.message) return null;
+  const match = /(\d+(?:\.\d+)?)\s*%/.exec(String(job.message));
+  return match ? Math.min(100, Math.floor(parseFloat(match[1]))) : null;
+}
+
 function setBtnVariant(btn, variant) {
   btn.classList.remove("btn-primary", "btn-success", "btn-warning", "btn-danger", "btn-ghost");
   btn.classList.add(variant);
@@ -72,7 +79,7 @@ function applyJobState(job) {
   if (progressEl) {
     progressEl.container.classList.toggle("active", inProgress);
     if (inProgress) {
-      const pct = typeof job.progress === "number" ? job.progress : null;
+      const pct = progressFromJob(job);
       const known = pct != null && pct > 0;
       progressEl.bar.classList.toggle("indeterminate", !known);
       if (known) {

@@ -20,12 +20,13 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.1"
+HOST_VERSION = "1.0.2"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
 SUPPORT_YTDLP = SUPPORT_DIR / "yt-dlp.py"
 LOG_PATH = SUPPORT_DIR / "native-host.log"
+JOBS_DIR = SUPPORT_DIR / "jobs"
 
 
 def resolve_ytdlp_script() -> Path:
@@ -169,96 +170,169 @@ class DownloadJob:
         return payload
 
 
-class YoutubeJob:
-    def __init__(self, token: str, url: str, filename: str, quality: str) -> None:
-        self.token = token
-        self.url = url
-        self.filename = filename
-        self.quality = quality
-        self.state = "running"
-        self.progress = 0
-        self.message = "starting yt-dlp…"
-        self.path: str | None = None
-        self.error: str | None = None
-        self._proc: subprocess.Popen[str] | None = None
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
+def youtube_job_path(token: str) -> Path:
+    return JOBS_DIR / f"{token}.json"
 
-    def _yt_dlp_cmd(self) -> tuple[list[str], str]:
-        ytdlp = resolve_ytdlp_script()
-        output_base = unique_path(DOWNLOADS, self.filename).with_suffix("").as_posix()
-        cmd = [sys.executable, "-u", str(ytdlp), "--no-playlist", "--newline", "-o", output_base + ".%(ext)s"]
-        if self.quality == "best":
-            cmd.extend(["-f", "bestvideo+bestaudio/best"])
-        else:
-            cmd.extend(["-f", "bv*[height<=720]+ba/b[height<=720]/best[height<=720]"])
-        cmd.append(self.url)
-        return cmd, output_base
 
-    def _run(self) -> None:
-        ytdlp = resolve_ytdlp_script()
-        if not ytdlp.exists():
-            self.state = "error"
-            self.error = f"yt-dlp.py not found (looked in {ytdlp})"
-            self.message = self.error
-            return
-        cmd, output_base = self._yt_dlp_cmd()
+def youtube_log_path(token: str) -> Path:
+    return JOBS_DIR / f"{token}.log"
+
+
+def read_youtube_job(token: str) -> dict[str, Any] | None:
+    path = youtube_job_path(token)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def write_youtube_job(state: dict[str, Any]) -> None:
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    youtube_job_path(state["token"]).write_text(
+        json.dumps(state, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def parse_ytdlp_line(line: str) -> tuple[str, int | None]:
+    message = line.strip()[:120] or ""
+    progress = None
+    if "[download]" in line and "%" in line:
         try:
-            self._proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-            assert self._proc.stdout is not None
-            for line in self._proc.stdout:
-                self.message = line.strip()[:120] or self.message
-                if "[download]" in line and "%" in line:
-                    try:
-                        pct = int(line.split("%", 1)[0].rsplit(" ", 1)[-1])
-                        self.progress = max(0, min(99, pct))
-                    except ValueError:
-                        pass
-            code = self._proc.wait()
-            if code != 0:
-                self.state = "error"
-                self.error = self.message or f"yt-dlp exited {code}"
-                return
-            matches = list(DOWNLOADS.glob(Path(output_base).name + ".*"))
-            if not matches:
-                matches = sorted(DOWNLOADS.glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
-            if matches:
-                self.path = str(matches[0])
-            self.state = "done"
-            self.progress = 100
-            self.message = "done"
-        except Exception as exc:
-            self.state = "error"
-            self.error = str(exc)
-            self.message = self.error
+            pct = float(line.split("%", 1)[0].rsplit(" ", 1)[-1])
+            progress = max(0, min(99, int(pct)))
+        except ValueError:
+            pass
+    return message, progress
 
-    def abort(self) -> None:
-        if self._proc and self._proc.poll() is None:
-            self._proc.terminate()
-        self.state = "cancelled"
-        self.message = "cancelled"
 
-    def status(self) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "ok": True,
-            "state": self.state,
-            "progress": self.progress,
-            "message": self.message,
-        }
-        if self.path:
-            payload["path"] = self.path
-        if self.error:
-            payload["error"] = self.error
-        return payload
+def sync_youtube_job_from_log(state: dict[str, Any]) -> dict[str, Any]:
+    log_path = youtube_log_path(state["token"])
+    if not log_path.exists():
+        return state
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except Exception:
+        return state
+    for line in reversed(lines):
+        message, progress = parse_ytdlp_line(line)
+        if message:
+            state["message"] = message
+        if progress is not None:
+            state["progress"] = progress
+            break
+        if message and state.get("progress", 0) == 0:
+            break
+    return state
+
+
+def find_youtube_output(output_base: str) -> Path | None:
+    base_name = Path(output_base).name
+    matches = list(DOWNLOADS.glob(base_name + ".*"))
+    if matches:
+        return max(matches, key=lambda p: p.stat().st_mtime)
+    return None
+
+
+def youtube_status_payload(state: dict[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "ok": True,
+        "state": state.get("state", "running"),
+        "progress": state.get("progress", 0),
+        "message": state.get("message", "starting yt-dlp…"),
+    }
+    if state.get("path"):
+        payload["path"] = state["path"]
+    if state.get("error"):
+        payload["error"] = state["error"]
+    return payload
+
+
+def build_yt_dlp_cmd(url: str, filename: str, quality: str) -> tuple[list[str], str]:
+    ytdlp = resolve_ytdlp_script()
+    output_base = unique_path(DOWNLOADS, filename).with_suffix("").as_posix()
+    cmd = [sys.executable, "-u", str(ytdlp), "--no-playlist", "--newline", "-o", output_base + ".%(ext)s"]
+    if quality == "best":
+        cmd.extend(["-f", "bestvideo+bestaudio/best"])
+    else:
+        cmd.extend(["-f", "bv*[height<=720]+ba/b[height<=720]/best[height<=720]"])
+    cmd.append(url)
+    return cmd, output_base
+
+
+def poll_youtube_job(token: str) -> dict[str, Any]:
+    state = read_youtube_job(token)
+    if not state:
+        return {"error": "Unknown YouTube download job"}
+
+    current_state = state.get("state", "running")
+    if current_state in ("done", "error", "cancelled"):
+        return youtube_status_payload(state)
+
+    state = sync_youtube_job_from_log(state)
+    pid = int(state.get("pid") or 0)
+    output_base = state.get("output_base") or ""
+
+    if pid_alive(pid):
+        write_youtube_job(state)
+        return youtube_status_payload(state)
+
+    output = find_youtube_output(output_base) if output_base else None
+    if output:
+        state["state"] = "done"
+        state["progress"] = 100
+        state["message"] = "done"
+        state["path"] = str(output)
+        write_youtube_job(state)
+        return youtube_status_payload(state)
+
+    log_path = youtube_log_path(token)
+    log_tail = ""
+    if log_path.exists():
+        try:
+            log_tail = log_path.read_text(encoding="utf-8", errors="replace")[-2000:]
+        except Exception:
+            pass
+
+    if re_error := _ytdlp_log_error(log_tail):
+        state["state"] = "error"
+        state["error"] = re_error
+        state["message"] = re_error
+    else:
+        state["state"] = "error"
+        state["error"] = state.get("message") or "yt-dlp exited unexpectedly"
+        state["message"] = state["error"]
+
+    write_youtube_job(state)
+    return youtube_status_payload(state)
+
+
+def _ytdlp_log_error(log_tail: str) -> str | None:
+    if not log_tail:
+        return None
+    for line in reversed(log_tail.splitlines()):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        lower = stripped.lower()
+        if "error:" in lower or "traceback" in lower:
+            return stripped[:200]
+    return None
 
 
 DOWNLOAD_JOBS: dict[str, DownloadJob] = {}
-YOUTUBE_JOBS: dict[str, YoutubeJob] = {}
 TEMP_FILES: dict[str, Path] = {}
 
 
@@ -288,30 +362,78 @@ def youtube_begin(data: dict[str, Any]) -> dict[str, Any]:
     url = data.get("url") or ""
     if not url:
         return {"error": "No YouTube URL provided"}
+    ytdlp = resolve_ytdlp_script()
+    if not ytdlp.exists():
+        return {"error": f"yt-dlp.py not found (looked in {ytdlp})"}
+
     token = str(uuid.uuid4())
     filename = sanitize(data.get("filename") or "video.mp4")
     quality = "best" if data.get("quality") == "best" else "normal"
-    YOUTUBE_JOBS[token] = YoutubeJob(token, url, filename, quality)
+    cmd, output_base = build_yt_dlp_cmd(url, filename, quality)
+    log_path = youtube_log_path(token)
+
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    log_fh = log_path.open("w", encoding="utf-8")
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        )
+    except Exception as exc:
+        log_fh.close()
+        return {"error": str(exc)}
+    log_fh.close()
+
+    state = {
+        "token": token,
+        "url": url,
+        "filename": filename,
+        "quality": quality,
+        "output_base": output_base,
+        "pid": proc.pid,
+        "state": "running",
+        "progress": 0,
+        "message": "starting yt-dlp…",
+    }
+    write_youtube_job(state)
     return {"ok": True, "token": token}
 
 
 def youtube_status(data: dict[str, Any]) -> dict[str, Any]:
     token = data.get("token") or ""
-    job = YOUTUBE_JOBS.get(token)
-    if not job:
-        return {"error": "Unknown YouTube download job"}
-    payload = job.status()
+    if not token:
+        return {"error": "No download token provided"}
+    payload = poll_youtube_job(token)
     if payload.get("state") in ("done", "error", "cancelled"):
-        YOUTUBE_JOBS.pop(token, None)
+        for path in (youtube_job_path(token), youtube_log_path(token)):
+            try:
+                path.unlink(missing_ok=True)
+            except Exception:
+                pass
     return payload
 
 
 def youtube_abort(data: dict[str, Any]) -> dict[str, Any]:
     token = data.get("token") or ""
-    job = YOUTUBE_JOBS.get(token)
-    if job:
-        job.abort()
-        YOUTUBE_JOBS.pop(token, None)
+    state = read_youtube_job(token)
+    if state:
+        pid = int(state.get("pid") or 0)
+        if pid_alive(pid):
+            try:
+                os.kill(pid, 15)
+            except OSError:
+                pass
+        state["state"] = "cancelled"
+        state["message"] = "cancelled"
+        write_youtube_job(state)
+    for path in (youtube_job_path(token), youtube_log_path(token)):
+        try:
+            path.unlink(missing_ok=True)
+        except Exception:
+            pass
     return {"ok": True}
 
 
