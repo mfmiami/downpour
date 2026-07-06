@@ -1193,6 +1193,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "cancelJob") {
     cancelJob(request.jobId);
     sendResponse({ ok: true });
+  } else if (request.action === "injectPageScript") {
+    const tabId = sender.tab && sender.tab.id;
+    const file = request.file;
+    if (tabId == null || !file || !chrome.scripting || !chrome.scripting.executeScript) {
+      sendResponse({ ok: false, error: "inject-unavailable" });
+      return true;
+    }
+    chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      files: [file]
+    }).then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: err && err.message ? err.message : String(err) }));
+    return true;
   } else if (request.action === "getTabId") {
     sendResponse({ tabId: sender.tab && sender.tab.id != null ? sender.tab.id : null });
     return true;

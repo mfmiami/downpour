@@ -18,10 +18,7 @@ const DownpourTikTok = (function () {
   function injectPageScript() {
     if (injected) return;
     injected = true;
-    const script = document.createElement("script");
-    script.src = chrome.runtime.getURL("tiktok-injected.js");
-    script.onload = () => script.remove();
-    (document.head || document.documentElement).appendChild(script);
+    DownpourInject.pageScript("tiktok-injected.js");
   }
 
   function tagElement(el) {

@@ -1,19 +1,7 @@
 const lastSocialReport = {};
-const injectedPageScripts = new Map();
 
 function injectPageScript(resource, datasetFlag) {
-  const key = datasetFlag || resource;
-  if (injectedPageScripts.has(key)) return injectedPageScripts.get(key);
-  if (datasetFlag) document.documentElement.dataset[datasetFlag] = "1";
-  const promise = new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.src = chrome.runtime.getURL(resource);
-    script.onload = () => { script.remove(); resolve(); };
-    script.onerror = () => resolve();
-    (document.head || document.documentElement).appendChild(script);
-  });
-  injectedPageScripts.set(key, promise);
-  return promise;
+  return DownpourInject.pageScript(resource, datasetFlag);
 }
 
 function reportSocialPages() {

@@ -73,11 +73,18 @@ assert.throws(
 );
 
 function loadInstagram() {
+  const injectCode = fs.readFileSync(path.join(root, "page-inject.js"), "utf8");
   const code = fs.readFileSync(path.join(root, "instagram.js"), "utf8");
-  const el = { style: {}, setAttribute: () => {}, appendChild: () => {}, remove: () => {} };
+  const el = { style: {}, dataset: {}, setAttribute: () => {}, appendChild: () => {}, remove: () => {} };
   const sandbox = {
     URL,
-    chrome: { runtime: { getURL: (p) => p } },
+    chrome: {
+      runtime: {
+        getURL: (p) => p,
+        getManifest: () => ({ permissions: [] }),
+        sendMessage: (_msg, cb) => { if (cb) cb(); }
+      }
+    },
     document: {
       readyState: "complete",
       addEventListener: () => {},
@@ -92,6 +99,7 @@ function loadInstagram() {
     DownpourPlatforms: { isInstagramHost: () => true }
   };
   const ctx = vm.createContext(sandbox);
+  vm.runInContext(injectCode, ctx);
   return vm.runInContext(`${code}\n;DownpourInstagram;`, ctx);
 }
 
