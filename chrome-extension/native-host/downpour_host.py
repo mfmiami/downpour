@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.3"
+HOST_VERSION = "1.0.4"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
@@ -35,6 +35,31 @@ def resolve_ytdlp_script() -> Path:
         if candidate.exists():
             return candidate
     return SUPPORT_YTDLP
+
+
+def resolve_ffmpeg_dir() -> str | None:
+    search_dirs: list[Path] = []
+    for part in os.environ.get("PATH", "").split(os.pathsep):
+        if part:
+            search_dirs.append(Path(part))
+    search_dirs.extend([
+        Path("/opt/homebrew/bin"),
+        Path("/usr/local/bin"),
+        Path("/usr/bin"),
+    ])
+    seen: set[str] = set()
+    for directory in search_dirs:
+        key = str(directory)
+        if key in seen:
+            continue
+        seen.add(key)
+        binary = directory / "ffmpeg"
+        if binary.is_file() and os.access(binary, os.X_OK):
+            return key
+    return None
+
+
+AUDIO_ONLY_EXTENSIONS = {".m4a", ".aac", ".opus", ".mp3", ".oga", ".wav", ".flac"}
 
 
 def log_error(message: str) -> None:
@@ -246,6 +271,7 @@ def youtube_output_candidates(output_base: str) -> list[Path]:
         if p.is_file()
         and not p.name.endswith(".part")
         and not re.search(r"\.f\d+\.", p.name)
+        and p.suffix.lower() not in AUDIO_ONLY_EXTENSIONS
     ]
 
 
@@ -284,14 +310,25 @@ def build_yt_dlp_cmd(url: str, filename: str, quality: str) -> tuple[list[str], 
     cmd = [
         sys.executable, "-u", str(ytdlp),
         "--no-playlist", "--newline",
-        "--merge-output-format", "mp4",
-        "-S", "ext:mp4:m4a",
         "-o", output_base + ".%(ext)s",
     ]
+    ffmpeg_dir = resolve_ffmpeg_dir()
+    if ffmpeg_dir:
+        cmd.extend(["--ffmpeg-location", ffmpeg_dir])
     if quality == "best":
-        cmd.extend(["-f", "bv*+ba/b"])
+        cmd.extend([
+            "-f", "bv*+ba/b",
+            "--merge-output-format", "mp4",
+            "-S", "ext:mp4:m4a",
+        ])
     else:
-        cmd.extend(["-f", "bv*[height<=720]+ba/b[height<=720]/best[height<=720]"])
+        cmd.extend([
+            "-f",
+            "b[height<=720][ext=mp4][vcodec!=none][acodec!=none]/"
+            "b[height<=720][ext=mp4]/b[height<=720]/b[ext=mp4]/"
+            "bv*[height<=720]+ba/b[height<=720]/best[height<=720]",
+            "--merge-output-format", "mp4",
+        ])
     cmd.append(url)
     return cmd, output_base
 
@@ -332,6 +369,24 @@ def poll_youtube_job(token: str) -> dict[str, Any]:
         state["path"] = str(output)
         write_youtube_job(state)
         return youtube_status_payload(state)
+
+    if output_base:
+        audio_only = [
+            p for p in DOWNLOADS.glob(Path(output_base).name + ".*")
+            if p.is_file()
+            and not p.name.endswith(".part")
+            and not re.search(r"\.f\d+\.", p.name)
+            and p.suffix.lower() in AUDIO_ONLY_EXTENSIONS
+        ]
+        if audio_only:
+            state["state"] = "error"
+            state["error"] = (
+                "Downloaded audio only — video merge needs ffmpeg. "
+                "Install with: brew install ffmpeg"
+            )
+            state["message"] = state["error"]
+            write_youtube_job(state)
+            return youtube_status_payload(state)
 
     log_path = youtube_log_path(token)
     log_tail = ""
@@ -518,11 +573,14 @@ def handle(message: dict[str, Any]) -> dict[str, Any]:
     msg_type = message.get("type")
     if msg_type == "ping":
         ytdlp = resolve_ytdlp_script()
+        ffmpeg_dir = resolve_ffmpeg_dir()
         return {
             "ok": True,
             "hostVersion": HOST_VERSION,
             "ytdlp": str(ytdlp),
             "ytdlpExists": ytdlp.exists(),
+            "ffmpeg": str(Path(ffmpeg_dir) / "ffmpeg") if ffmpeg_dir else None,
+            "ffmpegExists": ffmpeg_dir is not None,
         }
     if msg_type == "saveToDownloads":
         return save_to_downloads(message)

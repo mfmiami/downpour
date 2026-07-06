@@ -47,6 +47,7 @@ done
 LAUNCHER="$HOST_DIR/run-downpour-host.sh"
 cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
+export PATH="/opt/homebrew/bin:/usr/local/bin:\$PATH"
 exec "$(command -v python3)" "$HOST_PY"
 EOF
 chmod +x "$LAUNCHER"
