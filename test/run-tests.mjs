@@ -53,6 +53,18 @@ assert.equal(P.tikTokVideoUrlScore(audioUrl), -1);
 const best = P.pickBestTikTokVideoUrl([wmUrl, audioUrl, videoUrl]);
 assert.equal(best, videoUrl);
 
+// Erome CDN requires album referer and rejects thumbnails
+const eromeMp4 = "https://v202.erome.com/113/0Dup947V/clip_480p.mp4";
+const eromeThumb = "https://s202.erome.com/113/0Dup947V/thumbs/clip.jpg";
+assert.ok(P.isEromeVideoUrl(eromeMp4));
+assert.equal(P.isEromeVideoUrl(eromeThumb), false);
+assert.equal(
+  P.eromeRefererForUrl(eromeMp4, null),
+  "https://www.erome.com/a/0Dup947V"
+);
+const eromePick = P.pickGenericVideoUrl(null, [eromeThumb, eromeMp4]);
+assert.equal(eromePick.url, eromeMp4);
+
 // remux error handling
 const { flattenFragmentedMp4 } = require(path.join(root, "remux.js"));
 assert.throws(

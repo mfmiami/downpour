@@ -584,6 +584,15 @@ function isTwitterCdn(url) {
   return /video\.twimg\.com|pbs\.twimg\.com/i.test(url);
 }
 
+function isEromeCdn(url) {
+  return /\/\/v\d+\.erome\.com\//i.test(url);
+}
+
+function eromeRefererForCdn(url) {
+  const m = String(url).match(/erome\.com\/\d+\/([A-Za-z0-9]+)\//i);
+  return m ? `https://www.erome.com/a/${m[1]}` : "https://www.erome.com/";
+}
+
 function isSocialCdn(url) {
   return isInstagramCdn(url) || isTikTokCdn(url) || isTwitterCdn(url);
 }
@@ -598,6 +607,8 @@ function fetchInit(url, signal) {
     init.headers = { Referer: "https://www.tiktok.com/" };
   } else if (isTwitterCdn(url)) {
     init.headers = { Referer: "https://x.com/" };
+  } else if (isEromeCdn(url)) {
+    init.headers = { Referer: eromeRefererForCdn(url) };
   }
   return init;
 }
@@ -617,7 +628,7 @@ async function fetchViaTab(tabId, url, mode) {
 }
 
 async function fetchText(url, signal, tabId, forceTab) {
-  if (tabId != null && (forceTab || isYoutubeCdn(url) || isSocialCdn(url))) {
+  if (tabId != null && (forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url))) {
     try { return await fetchViaTab(tabId, url, "text"); } catch (e) { /* fall through */ }
   }
   const r = await fetch(url, fetchInit(url, signal));
@@ -626,7 +637,7 @@ async function fetchText(url, signal, tabId, forceTab) {
 }
 
 async function fetchBytes(url, signal, tabId, forceTab) {
-  if (tabId != null && (forceTab || isYoutubeCdn(url) || isSocialCdn(url))) {
+  if (tabId != null && (forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url))) {
     try { return await fetchViaTab(tabId, url, "bytes"); } catch (e) { /* fall through */ }
   }
   const r = await fetch(url, fetchInit(url, signal));
@@ -638,7 +649,7 @@ async function fetchBytes(url, signal, tabId, forceTab) {
 // progress (via Content-Length). Falls back to a plain read if streaming or the
 // length header is unavailable.
 async function fetchBytesWithProgress(url, job, signal) {
-  const useTab = job.tabId != null && (job.youtubeFetch || job.socialFetch || job.tabFetch || isYoutubeCdn(url) || isSocialCdn(url));
+  const useTab = job.tabId != null && (job.youtubeFetch || job.socialFetch || job.tabFetch || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url));
   if (useTab) {
     try {
       update(job, { message: "downloading via page…" });

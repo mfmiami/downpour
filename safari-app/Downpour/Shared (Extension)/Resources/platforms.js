@@ -41,6 +41,31 @@ const DownpourPlatforms = (function () {
       || host === "youtu.be" || host.endsWith(".youtube-nocookie.com");
   }
 
+  function isEromeHost(url) {
+    const host = hostOf(url);
+    return host === "erome.com" || host.endsWith(".erome.com");
+  }
+
+  function isEromeCdn(url) {
+    return !!url && /\/\/v\d+\.erome\.com\//i.test(url);
+  }
+
+  function eromeAlbumUrlFromMediaUrl(url) {
+    const m = String(url).match(/erome\.com\/\d+\/([A-Za-z0-9]+)\//i);
+    return m ? `https://www.erome.com/a/${m[1]}` : null;
+  }
+
+  function eromeRefererForUrl(url, pageHref) {
+    if (pageHref && isEromeHost(pageHref)) return String(pageHref).split("#")[0];
+    const album = eromeAlbumUrlFromMediaUrl(url);
+    return album || "https://www.erome.com/";
+  }
+
+  function isEromeVideoUrl(url) {
+    if (!url || !isEromeCdn(url)) return false;
+    return /\.mp4/i.test(url) && !/\/thumbs?\//i.test(url);
+  }
+
   function getOverlayPlatform(url) {
     const social = getSocialPlatform(url);
     if (social) return social;
@@ -72,20 +97,52 @@ const DownpourPlatforms = (function () {
     if (!url || /^blob:|^data:/i.test(url)) return false;
     if (isSocialCdnUrl(url)) return false;
     if (/googlevideo\.com/i.test(url)) return false;
+    if (isEromeVideoUrl(url)) return true;
     return isDirectMediaUrl(url) || isStreamMediaUrl(url)
       || /\/(?:hls|dash|manifest|playlist)(?:\/|\.)/i.test(url);
   }
 
   function genericVideoUrlScore(url) {
     if (!url) return -1;
+    if (/\.erome\.com/i.test(url) && (/\/thumbs?\//i.test(url) || /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url))) {
+      return -1;
+    }
     let score = 0;
+    if (isEromeVideoUrl(url)) score += 650;
     if (isStreamMediaUrl(url)) score += 500;
     if (/\.mp4/i.test(url)) score += 400;
     if (/\.webm/i.test(url)) score += 350;
-    if (/1080|720|hd/i.test(url)) score += 80;
+    if (/1080|720|hd|_480p|_720p|_1080p/i.test(url)) score += 80;
     if (/preview|thumb|poster|sprite|storyboard/i.test(url)) score -= 500;
     score += Math.min(url.length, 200);
     return score;
+  }
+
+  function collectEromeVideoUrls(videoEl) {
+    const seen = new Set();
+    const out = [];
+    const add = (url) => {
+      if (!isEromeVideoUrl(url) || seen.has(url)) return;
+      seen.add(url);
+      out.push(url);
+    };
+    const scope = videoEl?.closest?.(".media-group, .album, .video, .video-lg, #player, article, main")
+      || document;
+    scope.querySelectorAll("video source[src], video[src]").forEach((node) => {
+      add(node.getAttribute("src") || node.src);
+    });
+    if (videoEl) {
+      videoEl.querySelectorAll("source[src]").forEach((s) => add(s.getAttribute("src") || s.src));
+      add(videoEl.currentSrc);
+      add(videoEl.src);
+    }
+    try {
+      const re = /https:\/\/v\d+\.erome\.com\/[^"'\s<>]+\.mp4/gi;
+      let m;
+      while ((m = re.exec(document.documentElement.innerHTML)) !== null) add(m[0]);
+    } catch (e) {}
+    out.sort((a, b) => genericVideoUrlScore(b) - genericVideoUrlScore(a));
+    return out;
   }
 
   function videoUrlsFromPerformance() {
@@ -113,6 +170,7 @@ const DownpourPlatforms = (function () {
     }
     videoUrlsFromPerformance().forEach(add);
     (detectedUrls || []).forEach(add);
+    if (isEromeHost(location.href)) collectEromeVideoUrls(videoEl).forEach(add);
     out.sort((a, b) => genericVideoUrlScore(b) - genericVideoUrlScore(a));
     return out;
   }
@@ -737,6 +795,12 @@ const DownpourPlatforms = (function () {
     getOverlayPlatform,
     isOverlayHost,
     isYoutubeHost,
+    isEromeHost,
+    isEromeCdn,
+    isEromeVideoUrl,
+    eromeRefererForUrl,
+    eromeAlbumUrlFromMediaUrl,
+    collectEromeVideoUrls,
     isSocialOverlayHost,
     isSocialCdnUrl,
     isLikelyVideoResource,

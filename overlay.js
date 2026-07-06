@@ -749,7 +749,13 @@
   async function saveGeneric(mediaEl, ref, gen) {
     const tabState = await requestTabVideoState();
     if (abortIfCancelled(mediaEl, ref, gen)) return;
-    const picked = DownpourPlatforms.pickGenericVideoUrl(mediaEl, tabState.videos);
+    let picked = DownpourPlatforms.pickGenericVideoUrl(mediaEl, tabState.videos);
+    if ((!picked || !picked.url) && DownpourPlatforms.isEromeHost(location.href)) {
+      const eromeUrls = DownpourPlatforms.collectEromeVideoUrls(mediaEl);
+      if (eromeUrls.length) {
+        picked = { type: "direct", url: eromeUrls[0], altUrls: eromeUrls.slice(1) };
+      }
+    }
     if (!picked || !picked.url) throw new Error("no-url");
 
     ref.altUrls = picked.altUrls || [];

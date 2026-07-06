@@ -371,6 +371,8 @@ function tabFetchHeaders(url) {
     headers.Referer = "https://www.tiktok.com/";
   } else if (/twimg\.com/i.test(url)) {
     headers.Referer = "https://x.com/";
+  } else if (typeof DownpourPlatforms !== "undefined" && DownpourPlatforms.isEromeCdn(url)) {
+    headers.Referer = DownpourPlatforms.eromeRefererForUrl(url, location.href);
   } else {
     headers.Referer = location.href;
   }
