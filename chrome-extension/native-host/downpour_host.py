@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -20,7 +21,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.2"
+HOST_VERSION = "1.0.3"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
@@ -238,12 +239,29 @@ def sync_youtube_job_from_log(state: dict[str, Any]) -> dict[str, Any]:
     return state
 
 
-def find_youtube_output(output_base: str) -> Path | None:
+def youtube_output_candidates(output_base: str) -> list[Path]:
     base_name = Path(output_base).name
-    matches = list(DOWNLOADS.glob(base_name + ".*"))
-    if matches:
-        return max(matches, key=lambda p: p.stat().st_mtime)
-    return None
+    return [
+        p for p in DOWNLOADS.glob(base_name + ".*")
+        if p.is_file()
+        and not p.name.endswith(".part")
+        and not re.search(r"\.f\d+\.", p.name)
+    ]
+
+
+def pick_youtube_output(matches: list[Path]) -> Path | None:
+    if not matches:
+        return None
+    ext_rank = {".mp4": 3, ".mkv": 2, ".webm": 1}
+
+    def rank(path: Path) -> tuple[int, float]:
+        return (ext_rank.get(path.suffix.lower(), 0), path.stat().st_mtime)
+
+    return max(matches, key=rank)
+
+
+def find_youtube_output(output_base: str) -> Path | None:
+    return pick_youtube_output(youtube_output_candidates(output_base))
 
 
 def youtube_status_payload(state: dict[str, Any]) -> dict[str, Any]:
@@ -263,9 +281,15 @@ def youtube_status_payload(state: dict[str, Any]) -> dict[str, Any]:
 def build_yt_dlp_cmd(url: str, filename: str, quality: str) -> tuple[list[str], str]:
     ytdlp = resolve_ytdlp_script()
     output_base = unique_path(DOWNLOADS, filename).with_suffix("").as_posix()
-    cmd = [sys.executable, "-u", str(ytdlp), "--no-playlist", "--newline", "-o", output_base + ".%(ext)s"]
+    cmd = [
+        sys.executable, "-u", str(ytdlp),
+        "--no-playlist", "--newline",
+        "--merge-output-format", "mp4",
+        "-S", "ext:mp4:m4a",
+        "-o", output_base + ".%(ext)s",
+    ]
     if quality == "best":
-        cmd.extend(["-f", "bestvideo+bestaudio/best"])
+        cmd.extend(["-f", "bv*+ba/b"])
     else:
         cmd.extend(["-f", "bv*[height<=720]+ba/b[height<=720]/best[height<=720]"])
     cmd.append(url)
@@ -289,7 +313,18 @@ def poll_youtube_job(token: str) -> dict[str, Any]:
         write_youtube_job(state)
         return youtube_status_payload(state)
 
-    output = find_youtube_output(output_base) if output_base else None
+    fragments = youtube_output_candidates(output_base) if output_base else []
+    if output_base and not fragments:
+        temp_frags = [
+            p for p in DOWNLOADS.glob(Path(output_base).name + ".*")
+            if p.is_file() and re.search(r"\.f\d+\.", p.name)
+        ]
+        if temp_frags:
+            state["message"] = state.get("message") or "merging…"
+            write_youtube_job(state)
+            return youtube_status_payload(state)
+
+    output = pick_youtube_output(fragments) if fragments else None
     if output:
         state["state"] = "done"
         state["progress"] = 100

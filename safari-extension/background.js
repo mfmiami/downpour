@@ -275,6 +275,7 @@ async function runYtDlpNativeJob(job) {
   let token = null;
   try {
     ensureNotCancelled(job);
+    if (job.watchUrl) job.url = job.watchUrl;
     const watchUrl = resolveYtDlpWatchUrl(job);
     if (!watchUrl) throw new Error("No video page URL available for yt-dlp");
     const begin = await sendNative({
@@ -1264,6 +1265,7 @@ async function runYoutubeJob(job) {
       const watchUrl = resolveYtDlpWatchUrl(job);
       if (watchUrl) job.watchUrl = watchUrl;
     }
+    if (job.watchUrl) job.url = job.watchUrl;
     update(job, { state: "running", progress: 0, message: "starting yt-dlp…" });
     await runYtDlpNativeJob(job);
   } catch (e) {

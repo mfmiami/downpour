@@ -59,6 +59,10 @@ function progressFromJob(job) {
   return match ? Math.min(100, Math.floor(parseFloat(match[1]))) : null;
 }
 
+function jobUiUrl(job) {
+  return job.watchUrl || job.url;
+}
+
 function setBtnVariant(btn, variant) {
   btn.classList.remove("btn-primary", "btn-success", "btn-warning", "btn-danger", "btn-ghost");
   btn.classList.add(variant);
@@ -66,16 +70,17 @@ function setBtnVariant(btn, variant) {
 
 function applyJobState(job) {
   if (job.message) log(`job ${job.id}:`, job.message);
-  jobIdByUrl.set(job.url, job.id);
-  const btn = buttonsByUrl.get(job.url);
-  const cancelBtn = cancelButtonsByUrl.get(job.url);
-  const qualitySelect = qualitySelectsByUrl.get(job.url);
+  const uiUrl = jobUiUrl(job);
+  jobIdByUrl.set(uiUrl, job.id);
+  const btn = buttonsByUrl.get(uiUrl);
+  const cancelBtn = cancelButtonsByUrl.get(uiUrl);
+  const qualitySelect = qualitySelectsByUrl.get(uiUrl);
   if (!btn) return;
 
   const inProgress = job.state === "queued" || job.state === "running" || job.state === "saving";
   if (cancelBtn) cancelBtn.style.display = inProgress ? "inline-flex" : "none";
 
-  const progressEl = progressByUrl.get(job.url);
+  const progressEl = progressByUrl.get(uiUrl);
   if (progressEl) {
     progressEl.container.classList.toggle("active", inProgress);
     if (inProgress) {
@@ -90,6 +95,10 @@ function applyJobState(job) {
         progressEl.bar.style.width = "";
         progressEl.label.textContent = shortJobMessage(job.message) || "Downloading…";
       }
+    } else if (job.state === "done") {
+      progressEl.bar.classList.remove("indeterminate");
+      progressEl.bar.style.width = "100%";
+      progressEl.label.textContent = shortJobMessage(job.message) || "Done";
     }
   }
 
