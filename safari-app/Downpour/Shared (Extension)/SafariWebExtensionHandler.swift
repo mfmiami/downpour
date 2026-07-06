@@ -2,8 +2,6 @@
 //  SafariWebExtensionHandler.swift
 //  Shared (Extension)
 //
-//  Created by Frank Gardner on 6/17/26.
-//
 
 import SafariServices
 import os.log
@@ -14,9 +12,8 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
 
     func beginRequest(with context: NSExtensionContext) {
         let request = context.inputItems.first as? NSExtensionItem
-
         let message: Any?
-        if #available(iOS 15.0, macOS 11.0, *) {
+        if #available(macOS 11.0, *) {
             message = request?.userInfo?[SFExtensionMessageKey]
         } else {
             message = request?.userInfo?["message"]
@@ -40,7 +37,7 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         }
 
         let response = NSExtensionItem()
-        if #available(iOS 15.0, macOS 11.0, *) {
+        if #available(macOS 11.0, *) {
             response.userInfo = [ SFExtensionMessageKey: responsePayload ]
         } else {
             response.userInfo = [ "message": responsePayload ]
@@ -48,8 +45,6 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         context.completeRequest(returningItems: [ response ], completionHandler: nil)
     }
 
-    /// Decode base64 file data from the extension and write it into the user's
-    /// Downloads folder. Requires the `files.downloads.read-write` entitlement.
     private func saveToDownloads(_ dict: [String: Any]) -> [String: Any] {
         guard let b64 = dict["data"] as? String, !b64.isEmpty else {
             return ["error": "No file data provided"]
@@ -59,14 +54,7 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         }
 
         let filename = sanitize(dict["filename"] as? String ?? "video.mp4")
-
-        let dir: URL?
-        #if os(macOS)
-        dir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
-        #else
-        dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        #endif
-        guard let downloads = dir else {
+        guard let downloads = downloadsDir() else {
             return ["error": "Could not locate Downloads folder"]
         }
 
@@ -82,16 +70,9 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     }
 
     private func downloadsDir() -> URL? {
-        #if os(macOS)
-        return FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
-        #else
-        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        #endif
+        FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
     }
 
-    /// Begin a chunked save: create a hidden temp file in Downloads and return its
-    /// path as an opaque token. Used for large files so the JS side never builds a
-    /// single giant base64 string (which would OOM the service worker).
     private func saveBegin(_ dict: [String: Any]) -> [String: Any] {
         guard let dir = downloadsDir() else { return ["error": "Could not locate Downloads folder"] }
         let token = dir.appendingPathComponent(".vsd-\(UUID().uuidString).part")
@@ -101,7 +82,6 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         return ["ok": true, "token": token.path]
     }
 
-    /// Append one base64 chunk to the temp file.
     private func saveChunk(_ dict: [String: Any]) -> [String: Any] {
         guard let tokenPath = dict["token"] as? String else { return ["error": "No token"] }
         guard let b64 = dict["data"] as? String, let data = Data(base64Encoded: b64) else {
@@ -111,7 +91,7 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         guard let fh = try? FileHandle(forWritingTo: url) else { return ["error": "Temp file missing"] }
         defer { fh.closeFile() }
         do {
-            if #available(macOS 10.15.4, iOS 13.4, *) {
+            if #available(macOS 10.15.4, *) {
                 try fh.seekToEnd()
                 try fh.write(contentsOf: data)
             } else {
@@ -124,7 +104,6 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         }
     }
 
-    /// Finalize: move the temp file to a unique name in Downloads.
     private func saveEnd(_ dict: [String: Any]) -> [String: Any] {
         guard let tokenPath = dict["token"] as? String else { return ["error": "No token"] }
         guard let dir = downloadsDir() else { return ["error": "Could not locate Downloads folder"] }
@@ -141,7 +120,6 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         }
     }
 
-    /// Abort a chunked save and remove the temp file.
     private func saveAbort(_ dict: [String: Any]) -> [String: Any] {
         if let tokenPath = dict["token"] as? String {
             try? FileManager.default.removeItem(at: URL(fileURLWithPath: tokenPath))
@@ -180,10 +158,8 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         let quality = (dict["quality"] as? String == "best") ? "best" : "normal"
         do {
             let record = try youtubeManager.createJob(url: url, filename: filename, quality: quality, downloads: downloads)
-            #if os(macOS)
             youtubeManager.postJobNotification(token: record.token)
             youtubeManager.wakeHostApp()
-            #endif
             return ["ok": true, "token": record.token]
         } catch {
             return ["error": "Could not queue YouTube download: \(error.localizedDescription)"]
@@ -207,5 +183,4 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         youtubeManager.requestCancellation(token: token)
         return ["ok": true]
     }
-
 }

@@ -6,7 +6,6 @@
 
 :root {
     color-scheme: light dark;
-
     --spacing: 20px;
 }
 
@@ -19,29 +18,11 @@ body {
     align-items: center;
     justify-content: center;
     flex-direction: column;
-
     gap: var(--spacing);
     margin: 0 calc(var(--spacing) * 2);
     height: 100%;
-
     font: -apple-system-short-body;
     text-align: center;
-}
-
-body:not(.platform-mac, .platform-ios) :is(.platform-mac, .platform-ios) {
-    display: none;
-}
-
-body.platform-ios .platform-mac {
-    display: none;
-}
-
-body.platform-mac .platform-ios {
-    display: none;
-}
-
-body.platform-ios .platform-mac {
-    display: none;
 }
 
 body:not(.state-on, .state-off) :is(.state-on, .state-off) {
@@ -58,4 +39,10 @@ body.state-off :is(.state-on, .state-unknown) {
 
 button {
     font-size: 1em;
+}
+
+.legal-note {
+    font-size: 0.85em;
+    opacity: 0.8;
+    max-width: 28em;
 }

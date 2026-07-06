@@ -1,6 +1,6 @@
 //
 //  AppDelegate.swift
-//  macOS (App)
+//  App
 //
 //  Created by Frank Gardner on 6/17/26.
 //

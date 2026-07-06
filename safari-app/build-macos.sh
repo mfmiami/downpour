@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# macOS-only release build for Downpour (iOS targets are excluded from install).
+# Release build for Downpour (macOS Safari extension).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -10,7 +10,7 @@ XCODE_DIR="$ROOT/Downpour"
 
 cd "$XCODE_DIR"
 xcodebuild \
-  -scheme "Downpour (macOS)" \
+  -scheme Downpour \
   -configuration Release \
   -destination "platform=macOS" \
   -allowProvisioningUpdates \

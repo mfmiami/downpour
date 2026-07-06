@@ -1,19 +1,21 @@
-function show(platform, enabled, useSettingsInsteadOfPreferences) {
-    document.body.classList.add(`platform-${platform}`);
-
+function show(enabled, useSettingsInsteadOfPreferences) {
     if (useSettingsInsteadOfPreferences) {
-        document.getElementsByClassName('platform-mac state-on')[0].innerText = "Downpour is currently on. You can turn it off in the Extensions section of Safari Settings.";
-        document.getElementsByClassName('platform-mac state-off')[0].innerText = "Downpour is currently off. You can turn it on in the Extensions section of Safari Settings.";
-        document.getElementsByClassName('platform-mac state-unknown')[0].innerText = "You can turn on Downpour in the Extensions section of Safari Settings.";
-        document.getElementsByClassName('platform-mac open-preferences')[0].innerText = "Quit and Open Safari Settings…";
+        document.querySelector(".state-on").innerText =
+            "Downpour is currently on. You can turn it off in the Extensions section of Safari Settings.";
+        document.querySelector(".state-off").innerText =
+            "Downpour is currently off. You can turn it on in the Extensions section of Safari Settings.";
+        document.querySelector(".state-unknown").innerText =
+            "You can turn on Downpour in the Extensions section of Safari Settings.";
+        document.querySelector(".open-preferences").innerText =
+            "Quit and Open Safari Settings…";
     }
 
     if (typeof enabled === "boolean") {
-        document.body.classList.toggle(`state-on`, enabled);
-        document.body.classList.toggle(`state-off`, !enabled);
+        document.body.classList.toggle("state-on", enabled);
+        document.body.classList.toggle("state-off", !enabled);
     } else {
-        document.body.classList.remove(`state-on`);
-        document.body.classList.remove(`state-off`);
+        document.body.classList.remove("state-on");
+        document.body.classList.remove("state-off");
     }
 }
 

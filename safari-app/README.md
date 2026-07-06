@@ -1,26 +1,31 @@
-# Downpour — Safari Web Extension
+# Downpour — macOS Safari Extension
 
-macOS host app and Safari web extension for [Downpour](../videodownload).
+Host app and Safari web extension for [Downpour](../videodownload). **macOS only.**
 
 ## Build & run
 
-1. Open `Downpour/Downpour.xcodeproj` in Xcode.
-2. Select the **Downpour (macOS)** scheme and press **Run** (⌘R).
-3. Open **Safari → Settings → Extensions** and enable **Downpour**.
-4. Grant the extension access on the sites you use.
+```bash
+open Downpour/Downpour.xcodeproj
+```
+
+Select the **Downpour** scheme and press **Run** (⌘R), then enable the extension in **Safari → Settings → Extensions**.
 
 ## Extension source
 
-Extension JavaScript is edited in the sibling `videodownload/` repo. After changes:
+Edit JavaScript in the sibling `videodownload/` repo, then sync:
 
 ```bash
 ../videodownload/sync-to-safari.sh
 ```
 
-That copies files into `Downpour/Shared (Extension)/Resources/`.
-
 ## Release build
 
 ```bash
 ./build-macos.sh
+```
+
+Package an installer DMG from the extension repo:
+
+```bash
+../videodownload/scripts/build-installer.sh
 ```

@@ -37,5 +37,8 @@ safari-app/**/Resources/ffmpeg/
 # Archives
 *.xcarchive
 
-# Installer output
+# Installer output (keep releases/README.md)
+releases/.staging/
+releases/*.dmg
+!releases/README.md
 dist/

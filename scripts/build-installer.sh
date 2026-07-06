@@ -3,12 +3,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DIST="$ROOT/dist"
-STAGING="$DIST/staging"
+RELEASES="$ROOT/releases"
+STAGING="$RELEASES/.staging"
 SAFARI_BUILD="${SAFARI_BUILD:-$ROOT/../Downpour-Safari/build-macos.sh}"
 VERSION="$(python3 -c "import json; print(json.load(open('$ROOT/manifest.json'))['version'])")"
 DMG_NAME="Downpour-${VERSION}.dmg"
-DMG_PATH="$DIST/$DMG_NAME"
+DMG_PATH="$RELEASES/$DMG_NAME"
+LATEST_LINK="$RELEASES/Downpour.dmg"
 
 find_built_app() {
   find ~/Library/Developer/Xcode/DerivedData -path '*/Build/Products/Release/Downpour.app' -maxdepth 6 2>/dev/null | head -1
@@ -45,7 +46,7 @@ fi
 echo "Packaging: $APP"
 
 rm -rf "$STAGING"
-mkdir -p "$STAGING"
+mkdir -p "$STAGING" "$RELEASES"
 
 APP_NAME="Downpour.app"
 
@@ -67,8 +68,8 @@ EOF
 chmod +x "$STAGING/Install Downpour.command"
 
 cat > "$STAGING/INSTALL.txt" <<EOF
-Downpour ${VERSION}
-===================
+Downpour ${VERSION} — macOS Safari Extension
+============================================
 
 Quick install
 -------------
@@ -92,8 +93,7 @@ Safari cookies via yt-dlp. Downpour is not affiliated with YouTube, TikTok,
 Instagram, or X.
 EOF
 
-mkdir -p "$DIST"
-rm -f "$DMG_PATH"
+rm -f "$DMG_PATH" "$LATEST_LINK"
 
 echo "Creating disk image..."
 hdiutil create \
@@ -103,9 +103,14 @@ hdiutil create \
   -format UDZO \
   "$DMG_PATH" >/dev/null
 
+ln -sf "$DMG_NAME" "$LATEST_LINK"
+rm -rf "$STAGING"
+
 echo ""
 echo "Installer ready:"
 echo "  $DMG_PATH"
+echo "  $LATEST_LINK  → latest"
 du -sh "$DMG_PATH"
 echo ""
-echo "Share the .dmg file. Recipients double-click Install Downpour.command."
+echo "Upload to GitHub Releases:"
+echo "  gh release upload v${VERSION} \"$DMG_PATH\" --clobber"

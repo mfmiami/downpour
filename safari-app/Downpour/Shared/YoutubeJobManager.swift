@@ -3,11 +3,9 @@
 //  Downpour
 //
 
+import AppKit
 import Foundation
 import os.log
-#if os(macOS)
-import AppKit
-#endif
 
 enum YoutubeJobState: String, Codable {
     case pending, running, done, error, cancelled
@@ -125,7 +123,6 @@ final class YoutubeJobManager {
         )
     }
 
-    #if os(macOS)
     func wakeHostApp() {
         let launched = NSWorkspace.shared.launchApplication(
             withBundleIdentifier: Self.hostBundleID,
@@ -137,7 +134,6 @@ final class YoutubeJobManager {
             os_log(.error, "Failed to launch host app for bundle id %@", Self.hostBundleID)
         }
     }
-    #endif
 
     func removeJob(token: String) {
         guard let url = try? jobFileURL(token: token) else { return }

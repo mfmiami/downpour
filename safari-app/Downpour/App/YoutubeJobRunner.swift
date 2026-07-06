@@ -1,6 +1,6 @@
 //
 //  YoutubeJobRunner.swift
-//  macOS (App)
+//  App
 //
 
 import Cocoa
