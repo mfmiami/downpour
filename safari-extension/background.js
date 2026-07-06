@@ -303,25 +303,28 @@ async function runYtDlpNativeJob(job) {
   }
 }
 
-function resolveNetworkYoutubeUrl(job) {
-  if (job.tabId == null) return null;
-  const captured = youtubeStreamUrls[job.tabId];
-  if (captured && captured.size) {
-    const best = pickBestVideoplayback(captured);
-    if (best) return { kind: "direct", url: best, source: "network" };
-  }
-  const detected = detectedVideos[job.tabId];
-  if (detected) {
-    const playback = [...detected].filter((u) => /googlevideo\.com\/videoplayback/i.test(u));
-    const best = pickBestVideoplayback(playback);
-    if (best) return { kind: "direct", url: best, source: "network" };
-  }
-  return null;
+function usesChromeDownloads() {
+  return typeof globalThis.__downpourSaveToDownloads === "function";
 }
 
-function pickBestVideoplayback(urls) {
+function isNativeHostMissingError(message) {
+  return /native messaging host not found/i.test(message || "");
+}
+
+function nativeHostHelpMessage() {
+  return "Install the optional YouTube helper: open chrome-extension/native-host/install-native-host.sh in Terminal with your extension ID from chrome://extensions.";
+}
+
+function pickBestVideoplayback(urls, quality) {
   const list = Array.from(urls);
   if (!list.length) return null;
+  if (quality === "normal") {
+    const prefer720 = list.filter((u) => /[?&]itag=(22|136|135|298|299)\b/.test(u));
+    if (prefer720.length) {
+      list.length = 0;
+      prefer720.forEach((u) => list.push(u));
+    }
+  }
   const score = (u) => {
     let s = 0;
     const itag = u.match(/[?&]itag=(\d+)/);
@@ -337,6 +340,36 @@ function pickBestVideoplayback(urls) {
   };
   list.sort((a, b) => score(b) - score(a));
   return list[0];
+}
+
+function resolveNetworkYoutubeUrl(job) {
+  if (job.tabId == null) return null;
+  const quality = job.quality || "normal";
+  const captured = youtubeStreamUrls[job.tabId];
+  if (captured && captured.size) {
+    const best = pickBestVideoplayback(captured, quality);
+    if (best) return { kind: "direct", url: best, source: "network" };
+  }
+  const detected = detectedVideos[job.tabId];
+  if (detected) {
+    const playback = [...detected].filter((u) => /googlevideo\.com\/videoplayback/i.test(u));
+    const best = pickBestVideoplayback(playback, quality);
+    if (best) return { kind: "direct", url: best, source: "network" };
+    const hls = [...detected].find((u) => /\.m3u8(\?|$)/i.test(u) && /googlevideo|youtube/i.test(u));
+    if (hls) return { kind: "stream", url: hls, source: "network-hls" };
+  }
+  return null;
+}
+
+async function resolveYoutubeStreamForJob(job) {
+  const fromNetwork = resolveNetworkYoutubeUrl(job);
+  if (fromNetwork) return fromNetwork;
+  if (job.tabId == null) return null;
+  try {
+    const streams = await chrome.tabs.sendMessage(job.tabId, { action: "getYoutubeStreams" });
+    if (streams && !streams.error && streams.url) return streams;
+  } catch (e) {}
+  return null;
 }
 
 function isYoutubeWatchUrl(url) {
@@ -1067,6 +1100,44 @@ async function runDirectJob(job) {
   }
 }
 
+// Chrome: download captured googlevideo/HLS URLs via the open YouTube tab (no native host).
+// Safari / Chrome with native host installed: fall back to yt-dlp on the watch-page URL.
+async function runYoutubeJob(job) {
+  try {
+    ensureNotCancelled(job);
+    if (usesChromeDownloads()) {
+      update(job, { state: "running", progress: 0, message: "resolving stream…" });
+      const picked = await resolveYoutubeStreamForJob(job);
+      if (picked && !picked.error && picked.url) {
+        job.url = picked.url;
+        job.youtubeFetch = true;
+        if (picked.kind === "stream") {
+          await runStreamJob(job);
+          return;
+        }
+        await runDirectJob(job);
+        return;
+      }
+    }
+    if (!job.watchUrl) {
+      const watchUrl = resolveYtDlpWatchUrl(job);
+      if (watchUrl) job.watchUrl = watchUrl;
+    }
+    update(job, { state: "running", progress: 0, message: "downloading with yt-dlp…" });
+    await runYtDlpNativeJob(job);
+  } catch (e) {
+    if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
+    else if (usesChromeDownloads() && isNativeHostMissingError(e.message)) {
+      update(job, {
+        state: "error",
+        message: `ERROR: Play the video for a few seconds, then try again. ${nativeHostHelpMessage()}`
+      });
+    } else update(job, { state: "error", message: `ERROR: ${e.message}` });
+  } finally {
+    delete controllers[job.id];
+  }
+}
+
 // Platform CDN URLs are session-locked and return 403 outside the player.
 // Always use the watch-page URL with bundled yt-dlp.
 async function runYtDlpJob(job) {
@@ -1080,7 +1151,9 @@ async function runYtDlpJob(job) {
     await runYtDlpNativeJob(job);
   } catch (e) {
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
-    else update(job, { state: "error", message: `ERROR: ${e.message}` });
+    else if (usesChromeDownloads() && isNativeHostMissingError(e.message)) {
+      update(job, { state: "error", message: `ERROR: ${nativeHostHelpMessage()}` });
+    } else update(job, { state: "error", message: `ERROR: ${e.message}` });
   } finally {
     delete controllers[job.id];
   }
@@ -1143,7 +1216,8 @@ function startJob(kind, url, filename, tabId, options) {
   jobs[job.id] = job;
   controllers[job.id] = new AbortController();
   const runner = kind === "stream" ? runStreamJob
-    : (kind === "youtube" || kind === "tiktok" || kind === "twitter" || kind === "instagram") ? runYtDlpJob
+    : kind === "youtube" ? runYoutubeJob
+    : (kind === "tiktok" || kind === "twitter" || kind === "instagram") ? runYtDlpJob
     : runDirectJob;
   enqueueJob(job, runner);
   return job;
