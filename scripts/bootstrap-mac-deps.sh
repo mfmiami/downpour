@@ -3,12 +3,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-LIVE_SRC="${SAFARI_SRC:-$ROOT/../VideoStreamDownloader-Safari}"
-REPO_DEST="$ROOT/safari-app/Video Stream Downloader/Shared (App)/Resources"
+LIVE_SRC="${SAFARI_SRC:-$ROOT/../Downpour-Safari}"
+REPO_DEST="$ROOT/safari-app/Downpour/Shared (App)/Resources"
 
 pick_source() {
-  if [[ -d "$LIVE_SRC/Video Stream Downloader/Shared (App)/Resources/python" ]]; then
-    echo "$LIVE_SRC/Video Stream Downloader/Shared (App)/Resources"
+  if [[ -d "$LIVE_SRC/Downpour/Shared (App)/Resources/python" ]]; then
+    echo "$LIVE_SRC/Downpour/Shared (App)/Resources"
     return
   fi
   echo "ERROR: No python bundle found. Copy Resources/python and Resources/ffmpeg from a working Downpour.app build into:" >&2

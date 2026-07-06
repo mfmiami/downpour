@@ -1,41 +1,26 @@
-# Video Stream Downloader — Safari Web Extension
+# Downpour — Safari Web Extension
 
-This Xcode project was generated from the Chrome (Manifest V3) extension in
-`../videodownload` using Apple's `safari-web-extension-converter`. It contains
-macOS and iOS app + extension targets that wrap the same web-extension code.
+macOS host app and Safari web extension for [Downpour](../videodownload).
 
-## Running it (macOS)
+## Build & run
 
-1. Open `Video Stream Downloader/Video Stream Downloader.xcodeproj` in Xcode.
-2. Select the **Video Stream Downloader (macOS)** scheme and press **Run** (⌘R).
-   The container app launches.
-3. In Safari, enable the dev menu: **Settings → Advanced → "Show features for
-   web developers"**.
-4. **Settings → Developer → "Allow unsigned extensions"** (re-check after each
-   Safari restart while developing without a paid signing identity).
-5. **Settings → Extensions** → enable **Video Stream Downloader**, and grant it
-   access to websites (this extension requests all sites for stream detection).
+1. Open `Downpour/Downpour.xcodeproj` in Xcode.
+2. Select the **Downpour (macOS)** scheme and press **Run** (⌘R).
+3. Open **Safari → Settings → Extensions** and enable **Downpour**.
+4. Grant the extension access on the sites you use.
 
-For distribution you need an Apple Developer signing identity; for local testing
-the "Allow unsigned extensions" toggle is enough.
+## Extension source
 
-## What changed from the Chrome version
+Extension JavaScript is edited in the sibling `videodownload/` repo. After changes:
 
-Safari Web Extensions do **not** implement the `chrome.downloads` API, which the
-original used. The popup now saves files via an object-URL + anchor click
-(`saveBlob`), and direct (non-stream) downloads are fetched into a Blob first so
-cross-origin files actually save instead of opening in a tab (`downloadDirect`).
-Unused `storage`/`downloads` permissions were removed and the SVG toolbar icon
-was rasterized to PNGs (Safari renders PNG toolbar icons more reliably).
+```bash
+../videodownload/sync-to-safari.sh
+```
 
-To re-sync after further edits to the source extension, re-run the converter
-with `--force`, or edit the copied resources under
-`Video Stream Downloader/Shared (Extension)/Resources/`.
+That copies files into `Downpour/Shared (Extension)/Resources/`.
 
-## Compatibility notes / caveats
+## Release build
 
-- `webRequest.onBeforeRequest` is observe-only here and is supported by Safari
-  for stream URL detection.
-- Encrypted streams (AES `#EXT-X-KEY`, DRM) remain unsupported, same as before.
-- iOS targets are included but Safari-on-iOS extension behavior (especially
-  background `webRequest` detection) is more limited than macOS.
+```bash
+./build-macos.sh
+```

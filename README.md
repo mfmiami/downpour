@@ -43,7 +43,7 @@ Manual alternative: drag **Downpour.app** onto the **Applications** folder, open
 | `scripts/build-installer.sh` | Build app and package a distributable `.dmg` |
 | `scripts/install-downpour.sh` | One-click install logic (used inside the DMG) |
 
-Day-to-day development can use a sibling Xcode project at `../VideoStreamDownloader-Safari/`. Run `sync-to-safari.sh` after editing extension files.
+Day-to-day development can use a sibling Xcode project at `../Downpour-Safari/`. Run `sync-to-safari.sh` after editing extension files.
 
 ### Build from source
 
@@ -51,15 +51,15 @@ Day-to-day development can use a sibling Xcode project at `../VideoStreamDownloa
 # 1. Sync extension source into your Xcode project
 ./sync-to-safari.sh
 
-# 2. Build Release (expects sibling VideoStreamDownloader-Safari)
-../VideoStreamDownloader-Safari/build-macos.sh
+# 2. Build Release (expects sibling Downpour-Safari)
+../Downpour-Safari/build-macos.sh
 ```
 
 After cloning from GitHub:
 
 ```bash
 ./scripts/bootstrap-mac-deps.sh   # once — restores python/ffmpeg
-open safari-app/Video\ Stream\ Downloader/Video\ Stream\ Downloader.xcodeproj
+open safari-app/Downpour/Downpour.xcodeproj
 ```
 
 Install a local build to `/Applications`:

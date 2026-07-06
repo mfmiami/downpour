@@ -3,8 +3,8 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
-DEST="$(cd "$SRC/../VideoStreamDownloader-Safari/Video Stream Downloader/Shared (Extension)/Resources" && pwd)"
-PBXPROJ="$SRC/../VideoStreamDownloader-Safari/Video Stream Downloader/Video Stream Downloader.xcodeproj/project.pbxproj"
+DEST="$(cd "$SRC/../Downpour-Safari/Downpour/Shared (Extension)/Resources" && pwd)"
+PBXPROJ="$SRC/../Downpour-Safari/Downpour/Downpour.xcodeproj/project.pbxproj"
 
 FILES=(
   manifest.json

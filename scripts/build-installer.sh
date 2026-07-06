@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 STAGING="$DIST/staging"
-SAFARI_BUILD="${SAFARI_BUILD:-$ROOT/../VideoStreamDownloader-Safari/build-macos.sh}"
+SAFARI_BUILD="${SAFARI_BUILD:-$ROOT/../Downpour-Safari/build-macos.sh}"
 VERSION="$(python3 -c "import json; print(json.load(open('$ROOT/manifest.json'))['version'])")"
 DMG_NAME="Downpour-${VERSION}.dmg"
 DMG_PATH="$DIST/$DMG_NAME"

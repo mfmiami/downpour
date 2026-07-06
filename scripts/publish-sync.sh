@@ -3,12 +3,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="${SAFARI_SRC:-$ROOT/../VideoStreamDownloader-Safari}"
+SRC="${SAFARI_SRC:-$ROOT/../Downpour-Safari}"
 DEST="$ROOT/safari-app"
 
 if [[ ! -d "$SRC" ]]; then
   echo "ERROR: Safari project not found at $SRC" >&2
-  echo "Set SAFARI_SRC to your VideoStreamDownloader-Safari path." >&2
+  echo "Set SAFARI_SRC to your Downpour-Safari path." >&2
   exit 1
 fi
 
