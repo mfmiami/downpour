@@ -400,29 +400,27 @@ function collectYoutubePlaybackUrls(job) {
 }
 
 async function collectYoutubeStreamCandidates(job) {
-  const candidates = [];
+  const streams = [];
+  const direct = [];
   const seen = new Set();
   const add = (item) => {
     if (!item || item.error || !item.url || seen.has(item.url)) return;
     seen.add(item.url);
-    candidates.push(item);
+    if (item.kind === "stream") streams.push(item);
+    else direct.push(item);
   };
 
   if (job.tabId != null) {
     try {
-      const streams = await chrome.tabs.sendMessage(job.tabId, {
+      const picked = await chrome.tabs.sendMessage(job.tabId, {
         action: "getYoutubeStreams",
         quality: job.quality || "normal"
       });
-      add(streams);
-      if (streams && Array.isArray(streams.alternates)) {
-        for (const alt of streams.alternates) add(alt);
+      add(picked);
+      if (picked && Array.isArray(picked.alternates)) {
+        for (const alt of picked.alternates) add(alt);
       }
     } catch (e) {}
-  }
-
-  for (const url of collectYoutubePlaybackUrls(job)) {
-    add({ kind: "direct", url, source: "network" });
   }
 
   if (job.tabId != null && detectedVideos[job.tabId]) {
@@ -432,7 +430,11 @@ async function collectYoutubeStreamCandidates(job) {
     if (hls) add({ kind: "stream", url: hls, source: "network-hls" });
   }
 
-  return candidates;
+  for (const url of collectYoutubePlaybackUrls(job)) {
+    add({ kind: "direct", url, source: "network" });
+  }
+
+  return [...streams, ...direct];
 }
 
 function isYoutubeWatchUrl(url) {
@@ -1184,7 +1186,9 @@ async function runYoutubeJob(job) {
           update(job, {
             state: "running",
             progress: 0,
-            message: i === 0 ? "downloading…" : `retrying (${picked.source || picked.kind})…`
+            message: i === 0
+              ? `downloading (${picked.source || picked.kind})…`
+              : `retrying (${picked.source || picked.kind})…`
           });
           if (picked.kind === "stream") {
             await runStreamJob(job, { rethrow: true });

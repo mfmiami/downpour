@@ -1,4 +1,4 @@
-// Page-context fetch bridge (erome CDN Referer). Loaded via script src, not inline.
+// Page-context fetch bridge. Runs in MAIN world (page cookies + Referer).
 (function () {
   "use strict";
   if (window.__downpourPageFetch) return;
@@ -6,10 +6,13 @@
 
   window.addEventListener("message", (event) => {
     if (event.source !== window || !event.data || event.data.type !== "VSD_PAGE_FETCH_REQUEST") return;
-    const { id, url, wantText } = event.data;
+    const { id, url, wantText, credentials, headers } = event.data;
     if (!id || !url) return;
 
-    fetch(url, { credentials: "omit" })
+    const init = { credentials: credentials === "include" ? "include" : "omit" };
+    if (headers && typeof headers === "object") init.headers = headers;
+
+    fetch(url, init)
       .then((r) => {
         if (!r.ok) {
           window.postMessage({ type: "VSD_PAGE_FETCH_RESULT", id, error: `HTTP ${r.status}` }, "*");

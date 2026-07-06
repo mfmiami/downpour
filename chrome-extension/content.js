@@ -305,8 +305,20 @@ function formatDirectUrl(format) {
   return params.url || null;
 }
 
+function isChromeExtension() {
+  try {
+    return (chrome.runtime.getManifest().permissions || []).includes("scripting");
+  } catch (e) {
+    return false;
+  }
+}
+
 function pickYoutubeStream(streamingData, quality) {
   if (!streamingData) return null;
+
+  if (isChromeExtension() && streamingData.hlsManifestUrl) {
+    return { kind: "stream", url: streamingData.hlsManifestUrl, source: "hls" };
+  }
 
   const progressive = (streamingData.formats || [])
     .map((f) => ({ f, url: formatDirectUrl(f) }))
@@ -410,6 +422,8 @@ function tabFetchUsesCredentials(url) {
 }
 
 function needsPageContextFetch(url) {
+  if (/googlevideo\.com/i.test(url)) return true;
+  if (/youtube\.com\/api\/manifest|manifest\.googlevideo\.com|youtube\.com\/hls/i.test(url)) return true;
   return typeof DownpourPlatforms !== "undefined" && DownpourPlatforms.isEromeCdn(url);
 }
 
@@ -453,7 +467,9 @@ async function pageProxyFetch(url, mode) {
       type: "VSD_PAGE_FETCH_REQUEST",
       id,
       url,
-      wantText: mode === "text"
+      wantText: mode === "text",
+      credentials: tabFetchUsesCredentials(url) ? "include" : "omit",
+      headers: tabFetchHeaders(url)
     }, "*");
   });
 }
@@ -481,10 +497,12 @@ function scrapeVideoplaybackFromPage() {
 
 async function getYoutubeStreams(options) {
   const quality = (options && options.quality) || "normal";
+  const videoId = youtubeVideoId(window.location.href);
   let player = await readYtInitialPlayerResponse();
-  if (!player || !player.streamingData || !pickYoutubeStream(player.streamingData, quality)) {
-    const videoId = youtubeVideoId(window.location.href);
-    if (videoId) player = await fetchInnertubePlayer(videoId);
+  const initialPick = player && player.streamingData && pickYoutubeStream(player.streamingData, quality);
+  if (!initialPick && videoId) {
+    const fromApi = await fetchInnertubePlayer(videoId);
+    if (fromApi) player = fromApi;
   }
   if (player) {
     if (player.playabilityStatus?.status === "LOGIN_REQUIRED") {
