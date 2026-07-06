@@ -1,4 +1,20 @@
 const lastSocialReport = {};
+const injectedPageScripts = new Map();
+
+function injectPageScript(resource, datasetFlag) {
+  const key = datasetFlag || resource;
+  if (injectedPageScripts.has(key)) return injectedPageScripts.get(key);
+  if (datasetFlag) document.documentElement.dataset[datasetFlag] = "1";
+  const promise = new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = chrome.runtime.getURL(resource);
+    script.onload = () => { script.remove(); resolve(); };
+    script.onerror = () => resolve();
+    (document.head || document.documentElement).appendChild(script);
+  });
+  injectedPageScripts.set(key, promise);
+  return promise;
+}
 
 function reportSocialPages() {
   const platform = DownpourPlatforms.getSocialPlatform(location.href);
@@ -107,30 +123,7 @@ function hookTikTokNavigation() {
 
 function injectTikTokCapture() {
   if (!DownpourPlatforms.isTikTokHost(window.location.href)) return;
-  if (document.documentElement.dataset.vsdTikTokCapture) return;
-  document.documentElement.dataset.vsdTikTokCapture = "1";
-  const script = document.createElement("script");
-  script.textContent = `(function(){if(window.__vsdTikTokCapture)return;window.__vsdTikTokCapture=true;
-function norm(u){try{var x=new URL(u);if(x.hostname==="vm.tiktok.com"||x.hostname==="vt.tiktok.com")return x.origin+x.pathname;return"https://www.tiktok.com"+x.pathname;}catch(e){return u;}}
-function watchPath(p){return/\\/video\\/\\d+/.test(p)||/\\/photo\\/\\d+/.test(p)||/^\\/t\\/[A-Za-z0-9]+/.test(p)||/^\\/v\\/\\d+/.test(p);}
-function post(url){if(url)window.postMessage({type:"VSD_TT_VIDEO",url:norm(url.split("?")[0])},"*");}
-function fromItem(item){if(!item||!item.id)return null;var uid=item.author&&item.author.uniqueId||item.authorMeta&&item.authorMeta.uniqueId||typeof item.author==="string"&&item.author;if(!uid)return null;var kind=item.imagePost?"photo":"video";return"https://www.tiktok.com/@"+uid+"/"+kind+"/"+item.id;}
-function extractUrl(){try{if(watchPath(location.pathname))return norm(location.href);}catch(e){}
-var og=document.querySelector('meta[property="og:url"]');if(og&&og.content&&og.content.indexOf("tiktok.com")!==-1)return norm(og.content);
-var ids=["__UNIVERSAL_DATA_FOR_REHYDRATION__","SIGI_STATE"];for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(!el||!el.textContent)continue;try{var data=JSON.parse(el.textContent);var scope=data.__DEFAULT_SCOPE__||{};var keys=["webapp.video-detail","webapp.reflow.video.detail"];for(var j=0;j<keys.length;j++){var item=scope[keys[j]]&&scope[keys[j]].itemInfo&&scope[keys[j]].itemInfo.itemStruct;var built=fromItem(item);if(built)return built;}
-if(data.ItemModule){for(var k in data.ItemModule){var built2=fromItem(data.ItemModule[k]);if(built2)return built2;}}}catch(e){}}
-var scripts=document.querySelectorAll("script");for(var s=0;s<scripts.length;s++){var t=scripts[s].textContent||"";if(t.indexOf("tiktok.com")===-1)continue;var m=t.match(/https:\\/\\/www\\.tiktok\\.com\\/@[^"'\\s]+?\\/(?:video|photo)\\/\\d+/);if(m)return norm(m[0]);}
-var wrapper=document.querySelector('[id^="xgwrapper-"]');if(wrapper&&wrapper.id){var vid=wrapper.id.split("-").pop();var author=document.querySelector('[data-e2e="browse-username"], [data-e2e="video-author-avatar"]');var handle=author&&(author.getAttribute("href")||author.textContent||"").match(/@([^/?#\\s]+)/);if(vid&&handle)return"https://www.tiktok.com/@"+handle[1]+"/video/"+vid;}
-return null;}
-function report(){post(extractUrl());}
-function inspectPayload(data){if(!data||typeof data!=="object")return;var item=data.itemInfo&&data.itemInfo.itemStruct||data.itemStruct||data.aweme_detail||data.item_list&&data.item_list[0]||data.items&&data.items[0];var built=fromItem(item);if(built)post(built);}
-report();setInterval(report,1200);new MutationObserver(report).observe(document.documentElement,{childList:true,subtree:true});
-window.addEventListener("popstate",report);
-var _fetch=window.fetch;window.fetch=function(input,init){var req=typeof input==="string"?input:input&&input.url||"";return _fetch.apply(this,arguments).then(function(resp){try{if(req.indexOf("tiktok.com")!==-1&&(req.indexOf("/api/")!==-1||req.indexOf("/aweme/")!==-1))resp.clone().json().then(inspectPayload).catch(function(){});}catch(e){}return resp;});};
-var _open=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(method,url){try{if(typeof url==="string"&&url.indexOf("tiktok.com")!==-1)this.addEventListener("load",function(){try{inspectPayload(JSON.parse(this.responseText));}catch(e){}});}catch(e){}return _open.apply(this,arguments);};
-})();`;
-  (document.head || document.documentElement).appendChild(script);
-  script.remove();
+  injectPageScript("tiktok-page-capture-injected.js", "vsdTikTokCapture");
 }
 
 function injectSocialCapture() {
@@ -138,23 +131,7 @@ function injectSocialCapture() {
   if (!platform || platform === "tiktok") return;
   if (document.documentElement.dataset.vsdSocialCapture) return;
   document.documentElement.dataset.vsdSocialCapture = platform;
-  const script = document.createElement("script");
-  script.textContent = `(function(){if(window.__vsdSocialCapture)return;window.__vsdSocialCapture=true;
-function post(platform,url){if(url)window.postMessage({type:"VSD_SOCIAL_VIDEO",platform:platform,url:url},"*");}
-function normTwitter(u){try{var m=u.match(/\\/status\\/(\\d+)/);return m?"https://x.com/i/status/"+m[1]:u;}catch(e){return u;}}
-function normIg(u){try{var x=new URL(u);return"https://www.instagram.com"+x.pathname;}catch(e){return u;}}
-function fromTwitter(){if(/\\/status\\/\\d+/.test(location.pathname))return normTwitter(location.href);
-var og=document.querySelector('meta[property="og:url"]');if(og&&og.content&&og.content.indexOf("/status/")!==-1)return normTwitter(og.content);
-var a=document.querySelector('article video');if(a){var ar=a.closest("article");var l=ar&&ar.querySelector('a[href*="/status/"]');if(l)return normTwitter(l.href);}return null;}
-function fromInstagram(){if(/\\/(reels?|p|tv)\\//.test(location.pathname))return normIg(location.href);
-var og=document.querySelector('meta[property="og:url"]');if(og&&og.content&&og.content.indexOf("instagram.com")!==-1)return normIg(og.content);
-var l=document.querySelector('a[href*="/reel/"], a[href*="/p/"], a[href*="/tv/"]');if(l)return normIg(l.href);return null;}
-var platform=${JSON.stringify(platform)};
-function report(){post(platform,platform==="twitter"?fromTwitter():fromInstagram());}
-report();setInterval(report,1500);new MutationObserver(report).observe(document.documentElement,{childList:true,subtree:true});
-window.addEventListener("popstate",report);})();`;
-  (document.head || document.documentElement).appendChild(script);
-  script.remove();
+  injectPageScript("social-page-capture-injected.js", "vsdSocialCapture");
 }
 
 // Initial scan
@@ -244,10 +221,9 @@ function readYtInitialPlayerResponseFromPage() {
       resolve(event.data.player || null);
     };
     window.addEventListener("message", handler);
-    const script = document.createElement("script");
-    script.textContent = `window.postMessage({type:${JSON.stringify(tag)},player:window.ytInitialPlayerResponse||null},"*");`;
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
+    injectPageScript("youtube-player-bridge-injected.js", "vsdYtPlayerBridge").then(() => {
+      window.postMessage({ type: "VSD_YT_PLAYER_REQUEST", tag }, "*");
+    });
     setTimeout(() => { window.removeEventListener("message", handler); resolve(null); }, 1500);
   });
 }
@@ -390,21 +366,25 @@ function needsPageContextFetch(url) {
 
 let pageFetchSeq = 0;
 const pageFetchWaiters = new Map();
+let pageFetchBridgeReady = null;
 
 function ensurePageFetchBridge() {
-  if (document.documentElement.dataset.vsdPageFetch) return;
-  document.documentElement.dataset.vsdPageFetch = "1";
-  window.addEventListener("message", (event) => {
-    if (event.source !== window || !event.data || event.data.type !== "VSD_PAGE_FETCH_RESULT") return;
-    const waiter = pageFetchWaiters.get(event.data.id);
-    if (!waiter) return;
-    pageFetchWaiters.delete(event.data.id);
-    waiter(event.data);
-  });
+  if (pageFetchBridgeReady) return pageFetchBridgeReady;
+  pageFetchBridgeReady = (async () => {
+    window.addEventListener("message", (event) => {
+      if (event.source !== window || !event.data || event.data.type !== "VSD_PAGE_FETCH_RESULT") return;
+      const waiter = pageFetchWaiters.get(event.data.id);
+      if (!waiter) return;
+      pageFetchWaiters.delete(event.data.id);
+      waiter(event.data);
+    });
+    await injectPageScript("page-fetch-injected.js", "vsdPageFetch");
+  })();
+  return pageFetchBridgeReady;
 }
 
-function pageProxyFetch(url, mode) {
-  ensurePageFetchBridge();
+async function pageProxyFetch(url, mode) {
+  await ensurePageFetchBridge();
   return new Promise((resolve, reject) => {
     const id = `pf_${++pageFetchSeq}_${Date.now()}`;
     const timer = setTimeout(() => {
@@ -420,27 +400,12 @@ function pageProxyFetch(url, mode) {
       if (mode === "text") resolve({ text: data.text });
       else resolve({ data: data.data, length: data.length });
     });
-    const script = document.createElement("script");
-    script.textContent = `(function(){
-      var id=${JSON.stringify(id)};
-      var url=${JSON.stringify(url)};
-      var wantText=${mode === "text" ? "true" : "false"};
-      fetch(url,{credentials:"omit"})
-        .then(function(r){
-          if(!r.ok){window.postMessage({type:"VSD_PAGE_FETCH_RESULT",id:id,error:"HTTP "+r.status},"*");return;}
-          if(wantText){return r.text().then(function(text){
-            window.postMessage({type:"VSD_PAGE_FETCH_RESULT",id:id,text:text},"*");
-          });}
-          return r.arrayBuffer().then(function(buf){
-            var bytes=new Uint8Array(buf),binary="",CHUNK=0x8000;
-            for(var i=0;i<bytes.length;i+=CHUNK){binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+CHUNK));}
-            window.postMessage({type:"VSD_PAGE_FETCH_RESULT",id:id,data:btoa(binary),length:bytes.length},"*");
-          });
-        })
-        .catch(function(e){window.postMessage({type:"VSD_PAGE_FETCH_RESULT",id:id,error:e.message||String(e)},"*");});
-    })();`;
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
+    window.postMessage({
+      type: "VSD_PAGE_FETCH_REQUEST",
+      id,
+      url,
+      wantText: mode === "text"
+    }, "*");
   });
 }
 
@@ -487,12 +452,7 @@ async function getYoutubeStreams() {
 }
 
 function injectStreamCapture() {
-  if (document.documentElement.dataset.vsdCapture) return;
-  document.documentElement.dataset.vsdCapture = "1";
-  const script = document.createElement("script");
-  script.textContent = `(function(){if(window.__vsdCapture)return;window.__vsdCapture=true;function c(u){if(typeof u!=="string"||!u.includes("googlevideo.com/videoplayback"))return;window.postMessage({type:"VSD_YT_STREAM",url:u},"*");}const f=window.fetch;window.fetch=function(i,n){const u=typeof i==="string"?i:i&&i.url||"";c(u);return f.apply(this,arguments).then(async function(r){try{c(r.url);if(u.includes("/youtubei/v1/player")){const d=await r.clone().json();if(d&&d.streamingData)window.postMessage({type:"VSD_PLAYER",streamingData:d.streamingData},"*");}}catch(e){}return r;});};const o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){c(u);return o.apply(this,arguments);};})();`;
-  (document.head || document.documentElement).appendChild(script);
-  script.remove();
+  injectPageScript("youtube-capture-injected.js", "vsdCapture");
 }
 
 window.addEventListener("message", (event) => {

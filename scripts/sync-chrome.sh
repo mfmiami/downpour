@@ -19,6 +19,11 @@ FILES=(
   tiktok-injected.js
   social-extract.js
   social-injected.js
+  page-fetch-injected.js
+  youtube-capture-injected.js
+  youtube-player-bridge-injected.js
+  tiktok-page-capture-injected.js
+  social-page-capture-injected.js
   mux.min.js
 )
 
