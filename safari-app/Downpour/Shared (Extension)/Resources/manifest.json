@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Downpour",
-  "version": "2.12.4",
+  "version": "2.12.26",
   "description": "Downpour saves videos from any page — hover overlays on videos across the web, plus TikTok, X, and Instagram.",
   "permissions": [
     "webRequest",
@@ -30,8 +30,11 @@
       "matches": [
         "<all_urls>"
       ],
+      "run_at": "document_idle",
       "js": [
         "platforms.js",
+        "extension-bridge.js",
+        "page-inject.js",
         "instagram.js",
         "tiktok-extract.js",
         "social-extract.js",
@@ -55,6 +58,16 @@
         "*://*.x.com/*",
         "*://*.twitter.com/*"
       ]
+    },
+    {
+      "resources": [
+        "page-fetch-injected.js",
+        "youtube-capture-injected.js",
+        "youtube-player-bridge-injected.js",
+        "tiktok-page-capture-injected.js",
+        "social-page-capture-injected.js"
+      ],
+      "matches": ["<all_urls>"]
     }
   ],
   "icons": {

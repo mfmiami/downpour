@@ -1,10 +1,10 @@
 // Hover-follow save button for social sites and generic page videos.
 (function () {
-  const BTN_ID = "downpour-save-btn";
-  const STYLE_ID = "downpour-save-style";
+  const HOST_ID = "downpour-save-host";
   const MIN_SIDE = 160;
 
   let tracked = [];
+  let btnHost = null;
   let btn = null;
   let currentMedia = null;
   let hideTimer = null;
@@ -15,6 +15,14 @@
   const mediaJobs = new WeakMap();
   const activeMedia = new Set();
   const finishTimers = new WeakMap();
+
+  const RING_RADIUS = 15;
+  const RING_CIRC = 2 * Math.PI * RING_RADIUS;
+  const PROGRESS_RING =
+    `<svg class="downpour-ring" viewBox="0 0 38 38" width="38" height="38" aria-hidden="true">` +
+    `<circle class="downpour-ring-track" cx="19" cy="19" r="${RING_RADIUS}" fill="none" stroke-width="2.5"/>` +
+    `<circle class="downpour-ring-fill" cx="19" cy="19" r="${RING_RADIUS}" fill="none" stroke-width="2.5" stroke-linecap="round"/>` +
+    `</svg>`;
 
   const ICONS = {
     download:
@@ -39,51 +47,112 @@
     return isGenericPlatform();
   }
 
-  function injectStyles() {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = `
-#${BTN_ID} {
+  function buildButtonStyles() {
+    return `
+:host {
+  all: initial;
   position: fixed;
   z-index: 2147483646;
   width: 38px;
   height: 38px;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.9);
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+:host(.visible) {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.dp-btn {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 38px;
+  height: 38px;
   padding: 0;
   margin: 0;
   border: none;
   border-radius: 50%;
   cursor: pointer;
   color: #fff;
-  background: rgba(0, 0, 0, 0.55);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
-  backdrop-filter: blur(8px) saturate(140%);
+  background: rgba(12, 12, 14, 0.78);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  transform: translateY(-4px) scale(0.9);
-  pointer-events: none;
-  transition: opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+  overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
-#${BTN_ID}.downpour-visible {
+.dp-btn:hover {
+  background: rgba(18, 18, 22, 0.92);
+  transform: scale(1.06);
+}
+.dp-btn:active { transform: scale(0.96); }
+.dp-btn .downpour-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.dp-btn.downpour-error {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 0 0 1.5px rgba(248, 113, 113, 0.75);
+}
+.dp-btn.downpour-error .downpour-icon { color: #f87171; }
+.dp-btn.downpour-cancellable:hover {
+  background: rgba(28, 16, 20, 0.92);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 0 0 1.5px rgba(248, 113, 113, 0.55);
+}
+.dp-btn .downpour-ring {
+  position: absolute;
+  inset: 0;
+  width: 38px;
+  height: 38px;
+  max-width: 38px;
+  max-height: 38px;
+  transform: rotate(-90deg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+.dp-btn:not(.downpour-has-progress) .downpour-ring { display: none; }
+.dp-btn.downpour-has-progress .downpour-ring {
+  display: block;
   opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
 }
-#${BTN_ID}:hover {
-  background: rgba(0, 0, 0, 0.72);
-  transform: translateY(0) scale(1.06);
+.downpour-ring-track { stroke: rgba(255, 255, 255, 0.14); }
+.downpour-ring-fill {
+  stroke: #2dd4bf;
+  stroke-dasharray: ${RING_CIRC};
+  stroke-dashoffset: ${RING_CIRC};
+  transition: stroke-dashoffset 0.25s ease;
 }
-#${BTN_ID}:active { transform: translateY(0) scale(0.96); }
-#${BTN_ID} svg { display: block; }
-#${BTN_ID}.downpour-success { background: rgba(34, 160, 90, 0.9); opacity: 1; }
-#${BTN_ID}.downpour-error { background: rgba(214, 41, 75, 0.9); opacity: 1; }
-#${BTN_ID}.downpour-loading { background: rgba(0, 0, 0, 0.62); opacity: 1; }
-#${BTN_ID}.downpour-cancellable { cursor: pointer; }
-#${BTN_ID}.downpour-cancellable:hover { background: rgba(214, 41, 75, 0.82); }
+.dp-btn.downpour-progress-indeterminate .downpour-ring-fill {
+  animation: downpour-ring-indeterminate 1.15s ease-in-out infinite;
+}
+@keyframes downpour-ring-indeterminate {
+  0% { stroke-dashoffset: ${RING_CIRC * 0.85}; }
+  50% { stroke-dashoffset: ${RING_CIRC * 0.25}; }
+  100% { stroke-dashoffset: ${RING_CIRC * 0.85}; }
+}
+.dp-btn .downpour-icon {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dp-btn .downpour-pct {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #e2e8f0;
+}
 .downpour-spinner {
   width: 16px;
   height: 16px;
@@ -94,7 +163,6 @@
 }
 @keyframes downpour-spin { to { transform: rotate(360deg); } }
 `;
-    (document.head || document.documentElement).appendChild(style);
   }
 
   function isProfilePic(el) {
@@ -104,7 +172,8 @@
 
   function largeEnough(el) {
     const r = el.getBoundingClientRect();
-    return r.width >= MIN_SIDE && r.height >= MIN_SIDE;
+    const min = platform === "twitter" || platform === "instagram" ? 120 : MIN_SIDE;
+    return r.width >= min && r.height >= min;
   }
 
   function instagramCdnHint(el) {
@@ -156,50 +225,124 @@
   function rescan() {
     const next = [];
     const selector = platform === "instagram" ? "img, video" : "video";
-    document.querySelectorAll(selector).forEach((el) => {
+    DownpourPlatforms.forEachDeep(document, selector, (el) => {
       if (qualifies(el)) next.push(el);
     });
     tracked = next;
   }
 
-  function buildButton() {
-    if (btn) return;
-    btn = document.createElement("button");
-    btn.id = BTN_ID;
-    btn.type = "button";
-    btn.setAttribute("aria-label", "Save media");
-    btn.innerHTML = ICONS.download;
-    btn.addEventListener("click", onDownloadClick);
-    btn.addEventListener("mouseenter", () => clearTimeout(hideTimer));
-    document.body.appendChild(btn);
+  function pointerOnOverlay(e) {
+    if (!btnHost) return false;
+    const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+    return path.includes(btnHost);
   }
 
-  function setState(state, title) {
+  function climbToMedia(el) {
+    const seen = new Set();
+    let node = el;
+    while (node && !seen.has(node)) {
+      seen.add(node);
+      if (qualifies(node)) return node;
+      if (node.parentElement) {
+        node = node.parentElement;
+      } else {
+        const root = node.getRootNode();
+        node = root instanceof ShadowRoot ? root.host : null;
+      }
+    }
+    return null;
+  }
+
+  function mediaFromPoint(x, y) {
+    const stack = typeof document.elementsFromPoint === "function"
+      ? document.elementsFromPoint(x, y)
+      : [document.elementFromPoint(x, y)].filter(Boolean);
+    for (const el of stack) {
+      const hit = climbToMedia(el);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  function buildButton() {
+    if (btnHost) return;
+    const legacyBtn = document.getElementById("downpour-save-btn");
+    if (legacyBtn) legacyBtn.remove();
+    const legacyStyle = document.getElementById("downpour-save-style");
+    if (legacyStyle) legacyStyle.remove();
+    btnHost = document.createElement("div");
+    btnHost.id = HOST_ID;
+    const shadow = btnHost.attachShadow({ mode: "closed" });
+    const style = document.createElement("style");
+    style.textContent = buildButtonStyles();
+    btn = document.createElement("button");
+    btn.className = "dp-btn";
+    btn.type = "button";
+    btn.setAttribute("aria-label", "Save media");
+    btn.innerHTML = `${PROGRESS_RING}<span class="downpour-icon">${ICONS.download}</span>`;
+    btn.addEventListener("click", onDownloadClick);
+    btn.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+    shadow.appendChild(style);
+    shadow.appendChild(btn);
+    btnHost.addEventListener("mouseenter", () => clearTimeout(hideTimer));
+    document.body.appendChild(btnHost);
+  }
+
+  function setButtonIcon(html) {
     if (!btn) return;
-    btn.classList.remove("downpour-loading", "downpour-cancellable", "downpour-success", "downpour-error");
+    const icon = btn.querySelector(".downpour-icon");
+    if (icon) icon.innerHTML = html;
+  }
+
+  function updateProgressRing(progressPct) {
+    if (!btn) return;
+    const fill = btn.querySelector(".downpour-ring-fill");
+    if (!fill) return;
+    const indeterminate = progressPct == null || progressPct <= 0;
+    btn.classList.toggle("downpour-progress-indeterminate", indeterminate);
+    if (!indeterminate) {
+      const clamped = Math.max(0, Math.min(100, progressPct));
+      fill.style.strokeDashoffset = String(RING_CIRC * (1 - clamped / 100));
+    } else {
+      fill.style.strokeDashoffset = "";
+    }
+  }
+
+  function setState(state, title, progressPct) {
+    if (!btn) return;
+    btn.classList.remove(
+      "downpour-loading", "downpour-cancellable", "downpour-error",
+      "downpour-has-progress", "downpour-progress-indeterminate"
+    );
     if (state === "loading") {
       btn.classList.add("downpour-loading");
       const cancelling = /cancell/i.test(title || "");
       if (cancelling) {
-        btn.innerHTML = '<span class="downpour-spinner"></span>';
+        setButtonIcon('<span class="downpour-spinner"></span>');
         btn.setAttribute("aria-label", "Cancelling download");
         btn.title = title || "Cancelling…";
       } else {
-        btn.classList.add("downpour-cancellable");
-        btn.innerHTML = ICONS.cancel;
+        btn.classList.add("downpour-cancellable", "downpour-has-progress");
+        updateProgressRing(progressPct);
+        const showPct = typeof progressPct === "number" && progressPct > 0;
+        setButtonIcon(showPct
+          ? `<span class="downpour-pct">${progressPct}</span>`
+          : ICONS.cancel);
         btn.setAttribute("aria-label", "Cancel download");
-        btn.title = title && title !== "Saving…" ? `${title} — click to cancel` : "Click to cancel";
+        const pctLabel = typeof progressPct === "number" && progressPct > 0 ? `${progressPct}%` : null;
+        const detail = pctLabel || (title && title !== "Saving…" ? title : null);
+        btn.title = detail ? `${detail} — click to cancel` : "Click to cancel";
       }
-    } else if (state === "success") {
-      btn.classList.add("downpour-success");
-      btn.innerHTML = ICONS.check;
     } else if (state === "error") {
+      updateProgressRing(null);
       btn.classList.add("downpour-error");
-      btn.innerHTML = ICONS.error;
+      setButtonIcon(ICONS.error);
+      btn.title = title || "Save failed";
     } else {
-      btn.innerHTML = ICONS.download;
+      updateProgressRing(null);
+      setButtonIcon(ICONS.download);
       btn.setAttribute("aria-label", "Save media");
-      if (title) btn.title = title;
+      btn.title = title || "Save";
     }
   }
 
@@ -214,6 +357,7 @@
       cancelRequested: false,
       status: "idle",
       progress: "",
+      progressPct: null,
       handledFailureId: null,
       ytDlpTried: false,
       twitterM3u8Tried: false
@@ -268,15 +412,14 @@
       return;
     }
     if (ref.status === "starting") {
-      setState("loading", "Saving…");
+      setState("loading", "Saving…", null);
       return;
     }
     if (ref.status === "running") {
-      setState("loading", ref.progress || "Saving…");
+      setState("loading", ref.progress || "Saving…", ref.progressPct);
       return;
     }
-    if (ref.status === "success") setState("success", "Saved");
-    else if (ref.status === "error") setState("error", ref.progress || "Save failed");
+    if (ref.status === "error") setState("error", ref.progress || "Save failed");
     else setState("idle", "Save");
   }
 
@@ -288,7 +431,7 @@
     if (jobId == null || !isCurrentSave(ref, gen)) return;
     ref.jobId = jobId;
     if (ref.cancelRequested) {
-      chrome.runtime.sendMessage({ action: "cancelJob", jobId }, () => {});
+      sendRuntimeMessage({ action: "cancelJob", jobId });
       resetAfterCancel(media, ref);
       return;
     }
@@ -303,7 +446,7 @@
     ref.cancelRequested = true;
     reflectMediaState(media);
     if (ref.jobId != null) {
-      chrome.runtime.sendMessage({ action: "cancelJob", jobId: ref.jobId }, () => {});
+      sendRuntimeMessage({ action: "cancelJob", jobId: ref.jobId });
     }
   }
 
@@ -317,6 +460,7 @@
       ref.altUrls = [];
       ref.altIndex = 0;
       ref.progress = "";
+      ref.progressPct = null;
       ref.handledFailureId = null;
       ref.ytDlpTried = false;
       ref.twitterM3u8Tried = false;
@@ -327,28 +471,28 @@
   }
 
   function positionFor(media) {
-    if (!btn || !media) return false;
+    if (!btnHost || !media) return false;
     const r = media.getBoundingClientRect();
     if (r.width < MIN_SIDE || r.height < MIN_SIDE) return false;
     if (r.bottom < 0 || r.top > window.innerHeight) return false;
     const size = 38;
     const pad = 12;
-    btn.style.left = Math.round(r.right - size - pad) + "px";
-    btn.style.top = Math.round(r.top + pad) + "px";
+    btnHost.style.left = Math.round(r.right - size - pad) + "px";
+    btnHost.style.top = Math.round(r.top + pad) + "px";
     return true;
   }
 
   function showFor(media) {
-    if (!btn) return;
+    if (!btnHost) return;
     currentMedia = media;
     if (positionFor(media)) {
-      btn.classList.add("downpour-visible");
+      btnHost.classList.add("visible");
       reflectMediaState(media);
     }
   }
 
   function hide() {
-    if (!btn) return;
+    if (!btnHost) return;
     const media = currentMedia;
     if (media) {
       const timer = finishTimers.get(media);
@@ -357,11 +501,11 @@
         finishTimers.delete(media);
       }
       const ref = jobRefFor(media);
-      if (ref && (ref.status === "success" || ref.status === "error")) {
+      if (ref && ref.status === "error") {
         resetAfterCancel(media, ref);
       }
     }
-    btn.classList.remove("downpour-visible");
+    btnHost.classList.remove("visible");
     setState("idle");
     currentMedia = null;
   }
@@ -399,6 +543,9 @@
   }
 
   function mediaAtPoint(x, y) {
+    const pointed = mediaFromPoint(x, y);
+    if (platform !== "tiktok" && pointed) return pointed;
+
     if (platform === "tiktok") {
       const tt = tikTokVideoForPointer(x, y);
       if (tt) return tt;
@@ -421,8 +568,10 @@
           best = el;
         }
       }
-      return best;
+      return best || pointed;
     }
+
+    if (pointed) return pointed;
 
     // Instagram / X: smallest tracked rect under the cursor (front-most).
     let best = null;
@@ -445,8 +594,7 @@
     if (pending) return;
     pending = requestAnimationFrame(() => {
       pending = null;
-      const onBtn = e.target === btn || (btn && btn.contains(e.target));
-      if (onBtn) {
+      if (pointerOnOverlay(e)) {
         clearTimeout(hideTimer);
         return;
       }
@@ -467,7 +615,13 @@
       hide();
       return;
     }
-    if (btn && btn.classList.contains("downpour-visible")) reflectMediaState(currentMedia);
+    if (btnHost && btnHost.classList.contains("visible")) reflectMediaState(currentMedia);
+  }
+
+  function sendRuntimeMessage(message, callback) {
+    DownpourBridge.sendMessage(message, (resp) => {
+      if (callback) callback(resp);
+    });
   }
 
   function resolveTabId(cb) {
@@ -475,8 +629,12 @@
       cb(contentTabId);
       return;
     }
-    chrome.runtime.sendMessage({ action: "getTabId" }, (resp) => {
-      if (!chrome.runtime.lastError && resp && resp.tabId != null) contentTabId = resp.tabId;
+    if (!DownpourBridge.alive()) {
+      cb(contentTabId);
+      return;
+    }
+    sendRuntimeMessage({ action: "getTabId" }, (resp) => {
+      if (resp && resp.tabId != null) contentTabId = resp.tabId;
       cb(contentTabId);
     });
   }
@@ -488,15 +646,21 @@
     }
   }
 
+  DownpourBridge.onInvalidated(stopJobPoll);
+
   function startJobPoll() {
     if (jobPollTimer) return;
     jobPollTimer = setInterval(() => {
+      if (!DownpourBridge.alive()) {
+        stopJobPoll();
+        return;
+      }
       if (activeMedia.size === 0) {
         stopJobPoll();
         return;
       }
-      chrome.runtime.sendMessage({ action: "getJobs" }, (resp) => {
-        if (chrome.runtime.lastError || !resp || !resp.jobs) return;
+      sendRuntimeMessage({ action: "getJobs" }, (resp) => {
+        if (!resp || !resp.jobs) return;
         for (const media of Array.from(activeMedia)) {
           const ref = mediaJobs.get(media);
           if (!ref || ref.jobId == null) continue;
@@ -514,7 +678,7 @@
     ref.cdnUrl = null;
     resolveTabId((tabId) => {
       if (!isCurrentSave(ref, gen)) return;
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         action: "downloadSocial",
         platform,
         url: normalized,
@@ -523,7 +687,7 @@
         tabId
       }, (resp) => {
         if (!isCurrentSave(ref, gen)) return;
-        if (chrome.runtime.lastError || !resp || !resp.ok) {
+        if (!resp || !resp.ok) {
           failSave(mediaEl, ref, "Save failed", gen);
           return;
         }
@@ -540,7 +704,7 @@
     const tabFetch = usesTabFetch();
     resolveTabId((tabId) => {
       if (!isCurrentSave(ref, gen)) return;
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         action: "downloadStream",
         url,
         filename,
@@ -549,7 +713,7 @@
         tabId
       }, (resp) => {
       if (!isCurrentSave(ref, gen)) return;
-      if (chrome.runtime.lastError || !resp || !resp.ok) {
+      if (!resp || !resp.ok) {
         const pageUrl = isGenericPlatform() ? null : DownpourPlatforms.resolveSocialPageUrlForVideo(platform, mediaEl);
         if (pageUrl && !ref.ytDlpTried) {
           ref.ytDlpTried = true;
@@ -641,7 +805,7 @@
     const imageDownload = !!(options && options.imageDownload);
     resolveTabId((tabId) => {
       if (!isCurrentSave(ref, gen)) return;
-      chrome.runtime.sendMessage({
+      sendRuntimeMessage({
         action: "downloadDirect",
         url,
         filename,
@@ -651,7 +815,7 @@
         tabId
       }, (resp) => {
       if (!isCurrentSave(ref, gen)) return;
-      if (chrome.runtime.lastError || !resp || !resp.ok) {
+      if (!resp || !resp.ok) {
         if (!tryAlternateSave(mediaEl, ref)) {
           failSave(mediaEl, ref, "Save failed", gen);
         }
@@ -691,8 +855,8 @@
 
   function requestTabVideoState() {
     return new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: "getVideos" }, (resp) => {
-        if (chrome.runtime.lastError || !resp) {
+      sendRuntimeMessage({ action: "getVideos" }, (resp) => {
+        if (!resp) {
           resolve({ videos: [], tiktokUrl: null, twitterUrl: null });
           return;
         }
@@ -882,17 +1046,19 @@
 
   function finishInteraction(media, ref, immediate, gen) {
     if (!isCurrentSave(ref, gen)) return;
-    if (ref.status === "running") ref.status = "success";
     const prev = finishTimers.get(media);
     if (prev) clearTimeout(prev);
-    const delay = immediate ? 0 : 1400;
-    const timer = setTimeout(() => {
+    const finalize = () => {
       finishTimers.delete(media);
       if (!isCurrentSave(ref, gen)) return;
       resetAfterCancel(media, ref);
       if (currentMedia === media) hide();
-    }, delay);
-    finishTimers.set(media, timer);
+    };
+    if (immediate) {
+      finalize();
+      return;
+    }
+    finishTimers.set(media, setTimeout(finalize, 1200));
   }
 
   function jobUrlsMatch(job, ref) {
@@ -914,9 +1080,7 @@
     if (!jobUrlsMatch(job, ref)) return;
 
     if (job.state === "done") {
-      ref.status = "success";
-      reflectMediaState(media);
-      finishInteraction(media, ref, false, ref.saveGen);
+      finishInteraction(media, ref, true, ref.saveGen);
     } else if (job.state === "error") {
       const msg = job.message || "";
       if (/too small|stream header|audio-only/i.test(msg) && tryAlternateSave(media, ref, job.id)) {
@@ -931,7 +1095,10 @@
     } else if (job.state === "running" || job.state === "saving" || job.state === "queued") {
       if (ref.cancelRequested) return;
       ref.status = "running";
-      ref.progress = job.progress ? `${job.progress}%` : "Saving…";
+      ref.progressPct = typeof job.progress === "number" ? job.progress : null;
+      ref.progress = ref.progressPct != null && ref.progressPct > 0
+        ? `${ref.progressPct}%`
+        : (job.message || "Saving…");
       reflectMediaState(media);
     }
   }
@@ -974,10 +1141,11 @@
   }
 
   function init() {
+    if (window.top !== window) return;
     if (!document.body) return;
     platform = currentPlatform();
     if (!shouldRunOverlay()) return;
-    injectStyles();
+    document.documentElement.dataset.downpourOverlay = platform;
     buildButton();
     rescan();
     hookHistory();
@@ -988,6 +1156,16 @@
         init._t = setTimeout(rescan, 300);
       });
       mo.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (!init._rescanInterval) {
+      init._rescanInterval = setInterval(() => {
+        if (!DownpourBridge.alive()) return;
+        if (platform) rescan();
+      }, 2000);
+      DownpourBridge.onInvalidated(() => {
+        if (init._rescanInterval) clearInterval(init._rescanInterval);
+      });
     }
 
     resolveTabId(() => {});
@@ -1007,9 +1185,28 @@
     }
   }
 
+  function tryBoot() {
+    if (window.top !== window) return;
+    init();
+  }
+
   function boot() {
-    if (document.body) init();
-    else window.addEventListener("DOMContentLoaded", init, { once: true });
+    tryBoot();
+    if (!document.body) {
+      const bodyWait = new MutationObserver(() => {
+        if (document.body) {
+          bodyWait.disconnect();
+          tryBoot();
+        }
+      });
+      bodyWait.observe(document.documentElement, { childList: true, subtree: true });
+      window.addEventListener("DOMContentLoaded", tryBoot, { once: true });
+    }
+    window.addEventListener("pageshow", tryBoot);
+    window.addEventListener("focus", () => {
+      refreshPlatform();
+      rescan();
+    });
   }
 
   boot();

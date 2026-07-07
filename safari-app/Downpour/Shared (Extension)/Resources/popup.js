@@ -41,7 +41,27 @@ window.addEventListener("unhandledrejection", (e) => log("PROMISE REJECTION:", (
 const buttonsByUrl = new Map();
 const cancelButtonsByUrl = new Map();
 const qualitySelectsByUrl = new Map();
+const progressByUrl = new Map();
 const jobIdByUrl = new Map();
+
+function shortJobMessage(message) {
+  if (!message) return "";
+  return String(message)
+    .replace(/^ERROR:\s*/i, "")
+    .replace(/^Saved →\s*/i, "")
+    .slice(0, 72);
+}
+
+function progressFromJob(job) {
+  if (typeof job.progress === "number" && job.progress > 0) return job.progress;
+  if (!job.message) return null;
+  const match = /(\d+(?:\.\d+)?)\s*%/.exec(String(job.message));
+  return match ? Math.min(100, Math.floor(parseFloat(match[1]))) : null;
+}
+
+function jobUiUrl(job) {
+  return job.watchUrl || job.url;
+}
 
 function setBtnVariant(btn, variant) {
   btn.classList.remove("btn-primary", "btn-success", "btn-warning", "btn-danger", "btn-ghost");
@@ -50,14 +70,37 @@ function setBtnVariant(btn, variant) {
 
 function applyJobState(job) {
   if (job.message) log(`job ${job.id}:`, job.message);
-  jobIdByUrl.set(job.url, job.id);
-  const btn = buttonsByUrl.get(job.url);
-  const cancelBtn = cancelButtonsByUrl.get(job.url);
-  const qualitySelect = qualitySelectsByUrl.get(job.url);
+  const uiUrl = jobUiUrl(job);
+  jobIdByUrl.set(uiUrl, job.id);
+  const btn = buttonsByUrl.get(uiUrl);
+  const cancelBtn = cancelButtonsByUrl.get(uiUrl);
+  const qualitySelect = qualitySelectsByUrl.get(uiUrl);
   if (!btn) return;
 
   const inProgress = job.state === "queued" || job.state === "running" || job.state === "saving";
   if (cancelBtn) cancelBtn.style.display = inProgress ? "inline-flex" : "none";
+
+  const progressEl = progressByUrl.get(uiUrl);
+  if (progressEl) {
+    progressEl.container.classList.toggle("active", inProgress);
+    if (inProgress) {
+      const pct = progressFromJob(job);
+      const known = pct != null && pct > 0;
+      progressEl.bar.classList.toggle("indeterminate", !known);
+      if (known) {
+        progressEl.bar.style.width = `${Math.min(100, pct)}%`;
+        const detail = shortJobMessage(job.message);
+        progressEl.label.textContent = detail ? `${pct}% — ${detail}` : `${pct}%`;
+      } else {
+        progressEl.bar.style.width = "";
+        progressEl.label.textContent = shortJobMessage(job.message) || "Downloading…";
+      }
+    } else if (job.state === "done") {
+      progressEl.bar.classList.remove("indeterminate");
+      progressEl.bar.style.width = "100%";
+      progressEl.label.textContent = shortJobMessage(job.message) || "Done";
+    }
+  }
 
   if (job.state === "done") {
     btn.textContent = "Done";
@@ -255,6 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     buttonsByUrl.clear();
     cancelButtonsByUrl.clear();
     qualitySelectsByUrl.clear();
+    progressByUrl.clear();
 
     const socialPlatform = tabUrl ? socialOverlayPlatform(tabUrl) : null;
     if (socialPlatform) {
@@ -321,6 +365,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         labelDiv.textContent = url;
         labelDiv.title = url;
       }
+
+      const progressWrap = document.createElement("div");
+      progressWrap.className = "download-progress";
+      const progressTrack = document.createElement("div");
+      progressTrack.className = "download-progress-track";
+      const progressBar = document.createElement("div");
+      progressBar.className = "download-progress-bar";
+      progressTrack.appendChild(progressBar);
+      const progressLabel = document.createElement("div");
+      progressLabel.className = "download-progress-label";
+      progressWrap.appendChild(progressTrack);
+      progressWrap.appendChild(progressLabel);
+      progressByUrl.set(url, { container: progressWrap, bar: progressBar, label: progressLabel });
 
       const cardActions = document.createElement("div");
       cardActions.className = "card-actions";
@@ -400,6 +457,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (resp && resp.jobId) jobIdByUrl.set(url, resp.jobId);
           btn.textContent = "Downloading…";
           cancelBtn.style.display = "inline-flex";
+          const progressEl = progressByUrl.get(url);
+          if (progressEl) {
+            progressEl.container.classList.add("active");
+            progressEl.bar.classList.add("indeterminate");
+            progressEl.bar.style.width = "";
+            progressEl.label.textContent = "Queued…";
+          }
         });
       };
 
@@ -408,6 +472,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       li.appendChild(cardTop);
       li.appendChild(labelDiv);
+      li.appendChild(progressWrap);
       li.appendChild(cardActions);
       videoList.appendChild(li);
     });

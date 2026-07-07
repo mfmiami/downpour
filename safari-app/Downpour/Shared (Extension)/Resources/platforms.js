@@ -8,6 +8,28 @@ const DownpourPlatforms = (function () {
     }
   }
 
+  function shadowRootOf(el) {
+    if (!el || el.nodeType !== 1) return null;
+    if (el.shadowRoot) return el.shadowRoot;
+    try {
+      const dom = (typeof chrome !== "undefined" && chrome.dom)
+        || (typeof browser !== "undefined" && browser.dom);
+      if (dom && typeof dom.openOrClosedShadowRoot === "function") {
+        return dom.openOrClosedShadowRoot(el) || null;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function forEachDeep(root, selector, fn) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll(selector).forEach(fn);
+    root.querySelectorAll("*").forEach((el) => {
+      const shadow = shadowRootOf(el);
+      if (shadow) forEachDeep(shadow, selector, fn);
+    });
+  }
+
   function isTikTokHost(url) {
     const host = hostOf(url);
     return host === "tiktok.com" || host.endsWith(".tiktok.com")
@@ -791,6 +813,8 @@ const DownpourPlatforms = (function () {
   }
 
   return {
+    forEachDeep,
+    shadowRootOf,
     getSocialPlatform,
     getOverlayPlatform,
     isOverlayHost,

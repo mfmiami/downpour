@@ -32,6 +32,13 @@
 		BF2D5C952FE35BD900582A7E /* social-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C932FE35BD900582A7E /* social-injected.js */; };
 		BF2D5C9A2FE35BD900582A7E /* tiktok-extract.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C972FE35BD900582A7E /* tiktok-extract.js */; };
 		BF2D5C9B2FE35BD900582A7E /* tiktok-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5C992FE35BD900582A7E /* tiktok-injected.js */; };
+		BF2D5CA12FE35BD900582A7E /* extension-bridge.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5CA02FE35BD900582A7E /* extension-bridge.js */; };
+		BF2D5CA32FE35BD900582A7E /* page-inject.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5CA22FE35BD900582A7E /* page-inject.js */; };
+		BF2D5CA52FE35BD900582A7E /* page-fetch-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5CA42FE35BD900582A7E /* page-fetch-injected.js */; };
+		BF2D5CA72FE35BD900582A7E /* youtube-capture-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5CA62FE35BD900582A7E /* youtube-capture-injected.js */; };
+		BF2D5CA92FE35BD900582A7E /* youtube-player-bridge-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5CA82FE35BD900582A7E /* youtube-player-bridge-injected.js */; };
+		BF2D5CAB2FE35BD900582A7E /* tiktok-page-capture-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5CAA2FE35BD900582A7E /* tiktok-page-capture-injected.js */; };
+		BF2D5CAD2FE35BD900582A7E /* social-page-capture-injected.js in Resources */ = {isa = PBXBuildFile; fileRef = BF2D5CAC2FE35BD900582A7E /* social-page-capture-injected.js */; };
 		BF2D5C712FE35BD900582A7E /* YoutubeJobManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C702FE35BD900582A7E /* YoutubeJobManager.swift */; };
 		BF2D5C722FE35BD900582A7E /* YoutubeJobManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C702FE35BD900582A7E /* YoutubeJobManager.swift */; };
 		BF2D5C742FE35BD900582A7E /* YoutubeJobRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D5C732FE35BD900582A7E /* YoutubeJobRunner.swift */; };
@@ -93,6 +100,13 @@
 		BF2D5C932FE35BD900582A7E /* social-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "social-injected.js"; path = "Resources/social-injected.js"; sourceTree = "<group>"; };
 		BF2D5C972FE35BD900582A7E /* tiktok-extract.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "tiktok-extract.js"; path = "Resources/tiktok-extract.js"; sourceTree = "<group>"; };
 		BF2D5C992FE35BD900582A7E /* tiktok-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "tiktok-injected.js"; path = "Resources/tiktok-injected.js"; sourceTree = "<group>"; };
+		BF2D5CA02FE35BD900582A7E /* extension-bridge.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "extension-bridge.js"; path = "Resources/extension-bridge.js"; sourceTree = "<group>"; };
+		BF2D5CA22FE35BD900582A7E /* page-inject.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "page-inject.js"; path = "Resources/page-inject.js"; sourceTree = "<group>"; };
+		BF2D5CA42FE35BD900582A7E /* page-fetch-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "page-fetch-injected.js"; path = "Resources/page-fetch-injected.js"; sourceTree = "<group>"; };
+		BF2D5CA62FE35BD900582A7E /* youtube-capture-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "youtube-capture-injected.js"; path = "Resources/youtube-capture-injected.js"; sourceTree = "<group>"; };
+		BF2D5CA82FE35BD900582A7E /* youtube-player-bridge-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "youtube-player-bridge-injected.js"; path = "Resources/youtube-player-bridge-injected.js"; sourceTree = "<group>"; };
+		BF2D5CAA2FE35BD900582A7E /* tiktok-page-capture-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "tiktok-page-capture-injected.js"; path = "Resources/tiktok-page-capture-injected.js"; sourceTree = "<group>"; };
+		BF2D5CAC2FE35BD900582A7E /* social-page-capture-injected.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "social-page-capture-injected.js"; path = "Resources/social-page-capture-injected.js"; sourceTree = "<group>"; };
 		BF2D5C702FE35BD900582A7E /* YoutubeJobManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoutubeJobManager.swift; sourceTree = "<group>"; };
 		BF2D5C732FE35BD900582A7E /* YoutubeJobRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YoutubeJobRunner.swift; sourceTree = "<group>"; };
 		BF2D5C782FE35BD900582A7E /* python */ = {isa = PBXFileReference; lastKnownFileType = folder; path = python; sourceTree = "<group>"; };
@@ -217,6 +231,13 @@
 				BF2D5C972FE35BD900582A7E /* tiktok-extract.js */,
 				BF2D5C992FE35BD900582A7E /* tiktok-injected.js */,
 				BF2D5C872FE35BD900582A7E /* overlay.js */,
+				BF2D5CA02FE35BD900582A7E /* extension-bridge.js */,
+				BF2D5CA22FE35BD900582A7E /* page-inject.js */,
+				BF2D5CA42FE35BD900582A7E /* page-fetch-injected.js */,
+				BF2D5CA62FE35BD900582A7E /* youtube-capture-injected.js */,
+				BF2D5CA82FE35BD900582A7E /* youtube-player-bridge-injected.js */,
+				BF2D5CAA2FE35BD900582A7E /* tiktok-page-capture-injected.js */,
+				BF2D5CAC2FE35BD900582A7E /* social-page-capture-injected.js */,
 			);
 			name = Resources;
 			path = "Shared (Extension)";
@@ -339,6 +360,13 @@
 				BF2D5C9B2FE35BD900582A7E /* tiktok-injected.js in Resources */,
 				BF2D5C892FE35BD900582A7E /* overlay.js in Resources */,
 				BF2D5C5E2FE35BD900582A7E /* popup.js in Resources */,
+				BF2D5CA12FE35BD900582A7E /* extension-bridge.js in Resources */,
+				BF2D5CA32FE35BD900582A7E /* page-inject.js in Resources */,
+				BF2D5CA52FE35BD900582A7E /* page-fetch-injected.js in Resources */,
+				BF2D5CA72FE35BD900582A7E /* youtube-capture-injected.js in Resources */,
+				BF2D5CA92FE35BD900582A7E /* youtube-player-bridge-injected.js in Resources */,
+				BF2D5CAB2FE35BD900582A7E /* tiktok-page-capture-injected.js in Resources */,
+				BF2D5CAD2FE35BD900582A7E /* social-page-capture-injected.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -534,7 +562,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 2.12.9;
+				MARKETING_VERSION = 2.12.26;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
@@ -574,7 +602,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 2.12.9;
+				MARKETING_VERSION = 2.12.26;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
@@ -617,7 +645,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 2.12.9;
+				MARKETING_VERSION = 2.12.26;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
@@ -662,7 +690,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MARKETING_VERSION = 2.12.9;
+				MARKETING_VERSION = 2.12.26;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
