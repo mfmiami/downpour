@@ -738,12 +738,29 @@ function eromeRefererForCdn(url) {
   return m ? `https://www.erome.com/a/${m[1]}` : "https://www.erome.com/";
 }
 
+async function eromeRefererForJob(job) {
+  if (job.eromeReferer) return job.eromeReferer;
+  if (job.tabId != null) {
+    try {
+      const resp = await chrome.tabs.sendMessage(job.tabId, { action: "getEromePage" });
+      if (resp && resp.url) {
+        job.eromeReferer = resp.url;
+        return resp.url;
+      }
+    } catch (e) {}
+  }
+  return eromeRefererForCdn(job.url);
+}
+
 function isSocialCdn(url) {
   return isInstagramCdn(url) || isTikTokCdn(url) || isTwitterCdn(url);
 }
 
 function fetchInit(url, signal) {
-  const init = { credentials: (isYoutubeCdn(url) || isSocialCdn(url)) ? "include" : "omit", signal };
+  const init = {
+    credentials: (isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url)) ? "include" : "omit",
+    signal
+  };
   if (isYoutubeCdn(url)) {
     init.headers = { Referer: "https://www.youtube.com/", Origin: "https://www.youtube.com" };
   } else if (isInstagramCdn(url)) {
@@ -1160,9 +1177,10 @@ async function runNativeUrlDownload(job, options) {
   }
 }
 
-async function runEromeNativeDownload(job) {
+async function runEromeNativeDownload(job, referer) {
+  const ref = referer || await eromeRefererForJob(job);
   try {
-    await runNativeUrlDownload(job, { referer: eromeRefererForCdn(job.url) });
+    await runNativeUrlDownload(job, { referer: ref });
   } catch (e) {
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
     else update(job, { state: "error", message: `ERROR: ${e.message}` });
@@ -1171,9 +1189,51 @@ async function runEromeNativeDownload(job) {
   }
 }
 
+async function runEromeTabDownload(job, options) {
+  const rethrow = options && options.rethrow;
+  const ctrl = controllers[job.id];
+  const signal = ctrl && ctrl.signal;
+  try {
+    ensureNotCancelled(job);
+    assertFetchable(job.url);
+    job.eromeReferer = await eromeRefererForJob(job);
+    update(job, { state: "running", progress: 0, message: "downloading…" });
+    let bytes = await fetchBytesWithProgress(job.url, job, signal);
+    ensureNotCancelled(job);
+    if (bytes.length < 32768) {
+      throw new Error("Download too small — open the album page and try again.");
+    }
+    update(job, { state: "saving", progress: 95, message: `saving ${job.filename}…` });
+    const path = await saveToDownloads(bytes, job.filename, job);
+    update(job, { state: "done", message: `Saved → ${path}`, path });
+  } catch (e) {
+    if (rethrow) throw e;
+    if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
+    else if (usesChromeDownloads() && await nativeHostReachable()) {
+      try {
+        await runNativeUrlDownload(job, { referer: await eromeRefererForJob(job) });
+        return;
+      } catch (e2) {
+        if (wasCancelled(job, e2)) update(job, { state: "cancelled", message: "Cancelled" });
+        else update(job, { state: "error", message: `ERROR: ${e2.message}` });
+      }
+    } else update(job, { state: "error", message: `ERROR: ${e.message}` });
+  } finally {
+    if (!rethrow) delete controllers[job.id];
+  }
+}
+
 async function runDirectJob(job, options) {
   const rethrow = options && options.rethrow;
-  if (isEromeCdn(job.url) && !globalThis.__downpourSkipEromeNative) return runEromeNativeDownload(job);
+  if (isEromeCdn(job.url)) {
+    if (!globalThis.__downpourSkipEromeNative) {
+      return runEromeNativeDownload(job);
+    }
+    if (usesChromeDownloads() && await nativeHostReachable()) {
+      return runEromeNativeDownload(job);
+    }
+    return runEromeTabDownload(job, options);
+  }
   const ctrl = controllers[job.id];
   const signal = ctrl && ctrl.signal;
   try {

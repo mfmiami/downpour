@@ -122,10 +122,16 @@ function injectSocialCapture() {
   injectPageScript("social-page-capture-injected.js", "vsdSocialCapture");
 }
 
+function injectEromePageFetch() {
+  if (!DownpourPlatforms.isEromeHost(location.href)) return;
+  injectPageScript("page-fetch-injected.js", "vsdPageFetch");
+}
+
 // Initial scan
 injectStreamCapture();
 injectTikTokCapture();
 injectSocialCapture();
+injectEromePageFetch();
 hookTikTokNavigation();
 reportYoutubePage();
 reportSocialPages();
@@ -404,6 +410,7 @@ function tabFetchHeaders(url) {
     headers.Referer = "https://x.com/";
   } else if (typeof DownpourPlatforms !== "undefined" && DownpourPlatforms.isEromeCdn(url)) {
     headers.Referer = DownpourPlatforms.eromeRefererForUrl(url, location.href);
+    headers.Origin = "https://www.erome.com";
   } else {
     headers.Referer = location.href;
   }
@@ -412,7 +419,8 @@ function tabFetchHeaders(url) {
 
 function tabFetchUsesCredentials(url) {
   return /googlevideo\.com|twimg\.com|cdninstagram|fbcdn/i.test(url)
-    || DownpourPlatforms.isTikTokCdnHost(url);
+    || DownpourPlatforms.isTikTokCdnHost(url)
+    || DownpourPlatforms.isEromeCdn(url);
 }
 
 function needsPageContextFetch(url) {
@@ -555,6 +563,13 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     sendResponse({
       platform,
       url: platform ? DownpourPlatforms.resolveSocialPageUrl(platform) : null
+    });
+    return true;
+  }
+  if (request.action === "getEromePage") {
+    const href = window.location.href;
+    sendResponse({
+      url: DownpourPlatforms.isEromeHost(href) ? href.split("#")[0] : null
     });
     return true;
   }

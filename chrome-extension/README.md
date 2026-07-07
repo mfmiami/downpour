@@ -26,7 +26,7 @@ Chrome port of the Downpour video downloader. Shares the same content scripts, o
 | YouTube yt-dlp (720p / best) | ✗ | ✓ |
 | Large chunked saves | ✓ via `chrome.downloads` | ✓ |
 
-**Erome:** uses the in-page fetch path (album Referer) instead of the Safari native downloader.
+**Erome:** uses the native helper when installed (album Referer from the open tab); falls back to in-page fetch.
 
 **Saves:** files go to your browser Downloads folder via the Chrome Downloads API.
 
