@@ -86,6 +86,13 @@ function progressFromJob(job) {
   return match ? Math.min(100, Math.floor(parseFloat(match[1]))) : null;
 }
 
+function displayProgress(job) {
+  const pct = progressFromJob(job);
+  if (pct == null) return null;
+  if (job.state !== "done") return Math.min(99, pct);
+  return pct;
+}
+
 function jobUiUrl(job) {
   return job.watchUrl || job.url;
 }
@@ -121,16 +128,21 @@ function applyJobState(job) {
   if (progressEl) {
     progressEl.container.classList.toggle("active", inProgress);
     if (inProgress) {
-      const pct = progressFromJob(job);
+      const pct = displayProgress(job);
       const known = pct != null;
       progressEl.bar.classList.toggle("indeterminate", !known);
       if (known) {
-        progressEl.bar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+        progressEl.bar.style.width = `${Math.max(0, pct)}%`;
         const detail = shortJobMessage(job.message);
-        progressEl.label.textContent = detail ? `${pct}% — ${detail}` : `${pct}%`;
+        const prefix = job.state === "saving" ? "Saving" : `${pct}%`;
+        progressEl.label.textContent = detail
+          ? (job.state === "saving" ? `Saving — ${detail}` : `${pct}% — ${detail}`)
+          : prefix;
       } else {
         progressEl.bar.style.width = "";
-        progressEl.label.textContent = shortJobMessage(job.message) || "Downloading…";
+        progressEl.label.textContent = job.state === "saving"
+          ? (shortJobMessage(job.message) || "Saving…")
+          : (shortJobMessage(job.message) || "Downloading…");
       }
     } else if (job.state === "done") {
       progressEl.bar.classList.remove("indeterminate");
@@ -161,7 +173,9 @@ function applyJobState(job) {
     btn.disabled = true;
   } else {
     setBtnVariant(btn, "btn-primary");
-    btn.textContent = typeof job.progress === "number" ? `${job.progress}%` : "Downloading…";
+    btn.textContent = job.state === "saving"
+      ? "Saving…"
+      : (typeof job.progress === "number" ? `${Math.min(99, job.progress)}%` : "Downloading…");
     btn.disabled = true;
   }
 }

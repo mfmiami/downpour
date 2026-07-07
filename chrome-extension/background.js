@@ -294,7 +294,8 @@ async function runYtDlpNativeJob(job) {
       if (!status) throw new Error("yt-dlp status failed");
       if (status.error && !status.state) throw new Error(status.error);
       if (status.state === "done") {
-        update(job, { state: "done", progress: 100, message: `Saved → ${status.path}`, path: status.path });
+        if (!status.path) throw new Error("Save failed — file was not created");
+        markJobDone(job, status.path);
         return;
       }
       if (status.state === "error") throw new Error(status.error || "yt-dlp failed");
@@ -684,11 +685,32 @@ function badge(text, color) {
   if (color) chrome.action.setBadgeBackgroundColor({ color });
 }
 
+const DOWNLOAD_PROGRESS_CAP = 90;
+
+function downloadProgress(fraction) {
+  if (fraction == null || !isFinite(fraction)) return 0;
+  return Math.min(DOWNLOAD_PROGRESS_CAP, Math.max(0, Math.round(fraction * DOWNLOAD_PROGRESS_CAP)));
+}
+
+function savingProgress(fraction) {
+  if (fraction == null || !isFinite(fraction)) return 91;
+  return Math.min(99, 91 + Math.round(fraction * 8));
+}
+
+function markJobDone(job, path) {
+  if (!path) throw new Error("Save failed — file was not created");
+  update(job, { state: "done", progress: 100, message: `Saved → ${path}`, path });
+}
+
 function refreshBadge() {
   const live = Object.values(jobs).filter((j) => j.state === "running" || j.state === "saving");
   const queued = Object.values(jobs).filter((j) => j.state === "queued").length;
   if (live.length === 1) {
-    badge(live[0].progress != null ? `${live[0].progress}%` : "…", "#4688F1");
+    const pct = live[0].progress;
+    const label = live[0].state === "saving"
+      ? "…"
+      : (typeof pct === "number" ? `${Math.min(99, pct)}%` : "…");
+    badge(label, "#4688F1");
   } else if (live.length + queued > 0) {
     badge(String(live.length + queued), "#4688F1");
   }
@@ -855,7 +877,7 @@ async function fetchBytesWithProgress(url, job, signal) {
     chunks.push(value);
     received += value.length;
     if (total > 0) {
-      const pct = Math.round((received / total) * 100);
+      const pct = downloadProgress(received / total);
       if (pct !== lastPct) { lastPct = pct; update(job, { progress: pct }); }
     } else {
       update(job, { progress: 0, message: `downloading ${Math.round(received / 1048576)} MB…` });
@@ -932,7 +954,7 @@ async function saveToDownloads(bytes, filename, job) {
       if (job) {
         update(job, {
           state: "saving",
-          progress: Math.round((end / total) * 100),
+          progress: savingProgress(end / total),
           message: `saving ${Math.round(end / 1048576)}/${Math.round(total / 1048576)} MB…`
         });
       }
@@ -1039,7 +1061,7 @@ async function runStreamJob(job, options) {
           parts.push(buf);
         } catch (e) { if (wasCancelled(job, e)) throw e; /* else skip failed segment */ }
         downloaded++;
-        update(job, { progress: Math.round((downloaded / segments.length) * 100) });
+        update(job, { progress: downloadProgress(downloaded / segments.length) });
       }
       finalBytes = concatChunks(parts);
       try {
@@ -1066,7 +1088,7 @@ async function runStreamJob(job, options) {
           transmuxer.push(arrayBuffer);
         } catch (e) { if (wasCancelled(job, e)) throw e; /* else skip failed segment */ }
         downloaded++;
-        update(job, { progress: Math.round((downloaded / segments.length) * 100) });
+        update(job, { progress: downloadProgress(downloaded / segments.length) });
       }
       transmuxer.flush();
 
@@ -1089,10 +1111,10 @@ async function runStreamJob(job, options) {
     }
 
     ensureNotCancelled(job);
-    update(job, { state: "saving", progress: 100, message: `saving ${job.filename}…` });
+    update(job, { state: "saving", progress: 91, message: `saving ${job.filename}…` });
     const path = await saveToDownloads(finalBytes, job.filename, job);
     finalBytes = null;
-    update(job, { state: "done", message: `Saved → ${path}`, path });
+    markJobDone(job, path);
   } catch (e) {
     if (rethrow) throw e;
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
@@ -1168,7 +1190,8 @@ async function runNativeUrlDownload(job, options) {
       if (!status) throw new Error("native download status failed");
       if (status.error && !status.state) throw new Error(status.error);
       if (status.state === "done") {
-        update(job, { state: "done", progress: 100, message: `Saved → ${status.path}`, path: status.path });
+        if (!status.path) throw new Error("Save failed — file was not created");
+        markJobDone(job, status.path);
         return;
       }
       if (status.state === "error") throw new Error(status.error || "native download failed");
@@ -1212,9 +1235,9 @@ async function runEromeTabDownload(job, options) {
     if (bytes.length < 32768) {
       throw new Error("Download too small — open the album page and try again.");
     }
-    update(job, { state: "saving", progress: 95, message: `saving ${job.filename}…` });
+    update(job, { state: "saving", progress: 91, message: `saving ${job.filename}…` });
     const path = await saveToDownloads(bytes, job.filename, job);
-    update(job, { state: "done", message: `Saved → ${path}`, path });
+    markJobDone(job, path);
   } catch (e) {
     if (rethrow) throw e;
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
@@ -1273,9 +1296,9 @@ async function runDirectJob(job, options) {
         throw new Error("Download too small — image may be unavailable. Try opening the post first.");
       }
     }
-    update(job, { state: "saving", progress: 95, message: `saving ${saveName}…` });
+    update(job, { state: "saving", progress: 91, message: `saving ${saveName}…` });
     const path = await saveToDownloads(bytes, saveName, job);
-    update(job, { state: "done", message: `Saved → ${path}`, path });
+    markJobDone(job, path);
   } catch (e) {
     if (rethrow) throw e;
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });

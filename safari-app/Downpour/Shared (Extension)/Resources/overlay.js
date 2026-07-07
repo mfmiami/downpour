@@ -1095,10 +1095,16 @@
     } else if (job.state === "running" || job.state === "saving" || job.state === "queued") {
       if (ref.cancelRequested) return;
       ref.status = "running";
-      ref.progressPct = typeof job.progress === "number" ? job.progress : null;
-      ref.progress = ref.progressPct != null && ref.progressPct > 0
-        ? `${ref.progressPct}%`
-        : (job.message || "Saving…");
+      const rawPct = typeof job.progress === "number" ? job.progress : null;
+      ref.progressPct = rawPct != null ? Math.min(99, rawPct) : null;
+      if (job.state === "saving") {
+        ref.progress = job.message ? String(job.message).replace(/^Saved →\s*/i, "").slice(0, 48) : "Saving…";
+        if (!/saving/i.test(ref.progress)) ref.progress = `Saving… ${ref.progress}`.trim();
+      } else {
+        ref.progress = ref.progressPct != null && ref.progressPct > 0
+          ? `${ref.progressPct}%`
+          : (job.message || "Saving…");
+      }
       reflectMediaState(media);
     }
   }

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.8"
+HOST_VERSION = "1.0.9"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
@@ -118,6 +118,13 @@ def unique_path(directory: Path, filename: str) -> Path:
     return candidate
 
 
+def saved_file_ok(path: Path) -> bool:
+    try:
+        return path.is_file() and path.stat().st_size > 0
+    except OSError:
+        return False
+
+
 def save_to_downloads(data: dict[str, Any]) -> dict[str, Any]:
     b64 = data.get("data") or ""
     if not b64:
@@ -129,6 +136,8 @@ def save_to_downloads(data: dict[str, Any]) -> dict[str, Any]:
     filename = sanitize(data.get("filename") or "video.mp4")
     dest = unique_path(DOWNLOADS, filename)
     dest.write_bytes(raw)
+    if not saved_file_ok(dest):
+        return {"error": "File was not created"}
     return {"ok": True, "path": str(dest), "bytes": len(raw)}
 
 
@@ -212,10 +221,15 @@ def run_url_download_worker(token: str) -> None:
                     else:
                         state["message"] = f"downloading {max(1, received // 1048576)} MB…"
                     write_url_job(state)
-        state["state"] = "done"
-        state["progress"] = 100
-        state["message"] = "done"
-        state["path"] = str(dest)
+        if saved_file_ok(dest):
+            state["state"] = "done"
+            state["progress"] = 100
+            state["message"] = "done"
+            state["path"] = str(dest)
+        else:
+            state["state"] = "error"
+            state["error"] = "File was not created"
+            state["message"] = state["error"]
     except Exception as exc:
         state["state"] = "error"
         state["error"] = str(exc)
@@ -242,7 +256,7 @@ def poll_url_job(token: str) -> dict[str, Any]:
         return url_status_payload(state)
 
     dest = Path(state.get("dest") or "")
-    if dest.exists() and dest.stat().st_size > 32768:
+    if saved_file_ok(dest) and dest.stat().st_size > 32768:
         state["state"] = "done"
         state["progress"] = 100
         state["message"] = "done"
@@ -438,7 +452,7 @@ def poll_youtube_job(token: str) -> dict[str, Any]:
             return youtube_status_payload(state)
 
     output = pick_youtube_output(fragments) if fragments else None
-    if output:
+    if output and saved_file_ok(output):
         state["state"] = "done"
         state["progress"] = 100
         state["message"] = "done"
@@ -687,6 +701,8 @@ def save_end(data: dict[str, Any]) -> dict[str, Any]:
     filename = sanitize(data.get("filename") or "video.mp4")
     dest = unique_path(DOWNLOADS, filename)
     path.replace(dest)
+    if not saved_file_ok(dest):
+        return {"error": "File was not created"}
     return {"ok": True, "path": str(dest)}
 
 

@@ -75,7 +75,7 @@
         if (job && updateFn) {
           updateFn(job, {
             state: "saving",
-            progress: Math.round((end / total) * 100),
+            progress: Math.min(99, 91 + Math.round((end / total) * 8)),
             message: `saving ${Math.round(end / 1048576)}/${Math.round(total / 1048576)} MB…`
           });
         }

@@ -65,6 +65,11 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         let dest = uniqueURL(in: downloads, filename: filename)
         do {
             try data.write(to: dest, options: .atomic)
+            guard FileManager.default.fileExists(atPath: dest.path),
+                  let attrs = try? FileManager.default.attributesOfItem(atPath: dest.path),
+                  let size = attrs[.size] as? NSNumber, size.intValue > 0 else {
+                return ["error": "File was not created"]
+            }
             os_log(.default, "Saved video to %@", dest.path)
             return ["ok": true, "path": dest.path, "bytes": data.count]
         } catch {
@@ -116,6 +121,11 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         let dest = uniqueURL(in: dir, filename: filename)
         do {
             try FileManager.default.moveItem(at: temp, to: dest)
+            guard FileManager.default.fileExists(atPath: dest.path),
+                  let attrs = try? FileManager.default.attributesOfItem(atPath: dest.path),
+                  let size = attrs[.size] as? NSNumber, size.intValue > 0 else {
+                return ["error": "File was not created"]
+            }
             os_log(.default, "Saved video to %@", dest.path)
             return ["ok": true, "path": dest.path]
         } catch {
