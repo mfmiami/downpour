@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.7"
+HOST_VERSION = "1.0.8"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
@@ -498,7 +498,36 @@ def _ytdlp_log_error(log_tail: str) -> str | None:
     return None
 
 
-TEMP_FILES: dict[str, Path] = {}
+PART_FILE_RE = re.compile(r"^\.downpour-[0-9a-f-]+\.part$", re.I)
+UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.I,
+)
+
+
+def resolve_part_path(token: str) -> Path | None:
+    """Resolve a chunked-save token to a temp .part file under Downloads.
+
+    Chrome native messaging starts a fresh host process per message, so temp
+    paths must be recovered from the token (full path or UUID), not memory.
+    """
+    if not token:
+        return None
+    downloads = DOWNLOADS.resolve()
+    if UUID_RE.match(token):
+        candidate = (downloads / f".downpour-{token}.part").resolve()
+    else:
+        try:
+            candidate = Path(token).resolve()
+        except Exception:
+            return None
+    try:
+        candidate.relative_to(downloads)
+    except ValueError:
+        return None
+    if not PART_FILE_RE.match(candidate.name):
+        return None
+    return candidate
 
 
 def download_url_begin(data: dict[str, Any]) -> dict[str, Any]:
@@ -629,17 +658,16 @@ def youtube_abort(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def save_begin(data: dict[str, Any]) -> dict[str, Any]:
-    token = str(uuid.uuid4())
-    path = DOWNLOADS / f".downpour-{token}.part"
+    DOWNLOADS.mkdir(parents=True, exist_ok=True)
+    path = DOWNLOADS / f".downpour-{uuid.uuid4()}.part"
     path.touch()
-    TEMP_FILES[token] = path
-    return {"ok": True, "token": token}
+    return {"ok": True, "token": str(path)}
 
 
 def save_chunk(data: dict[str, Any]) -> dict[str, Any]:
     token = data.get("token") or ""
-    path = TEMP_FILES.get(token)
-    if not path:
+    path = resolve_part_path(token)
+    if not path or not path.exists():
         return {"error": "Temp file missing"}
     b64 = data.get("data") or ""
     try:
@@ -653,7 +681,7 @@ def save_chunk(data: dict[str, Any]) -> dict[str, Any]:
 
 def save_end(data: dict[str, Any]) -> dict[str, Any]:
     token = data.get("token") or ""
-    path = TEMP_FILES.pop(token, None)
+    path = resolve_part_path(token)
     if not path or not path.exists():
         return {"error": "Temp file missing"}
     filename = sanitize(data.get("filename") or "video.mp4")
@@ -664,7 +692,7 @@ def save_end(data: dict[str, Any]) -> dict[str, Any]:
 
 def save_abort(data: dict[str, Any]) -> dict[str, Any]:
     token = data.get("token") or ""
-    path = TEMP_FILES.pop(token, None)
+    path = resolve_part_path(token)
     if path and path.exists():
         path.unlink()
     return {"ok": True}
