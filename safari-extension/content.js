@@ -420,13 +420,23 @@ function tabFetchHeaders(url) {
 function tabFetchUsesCredentials(url) {
   return /googlevideo\.com|twimg\.com|cdninstagram|fbcdn/i.test(url)
     || DownpourPlatforms.isTikTokCdnHost(url)
-    || DownpourPlatforms.isEromeCdn(url);
+    || DownpourPlatforms.isEromeCdn(url)
+    || /\.m3u8(\?|$)|\.mpd(\?|$)/i.test(url)
+    || /\/hls\/|\/manifest\/|master\.m3u8|index\.m3u8/i.test(url);
 }
 
 function needsPageContextFetch(url) {
   if (/googlevideo\.com/i.test(url)) return true;
   if (/youtube\.com\/api\/manifest|manifest\.googlevideo\.com|youtube\.com\/hls/i.test(url)) return true;
-  return typeof DownpourPlatforms !== "undefined" && DownpourPlatforms.isEromeCdn(url);
+  if (typeof DownpourPlatforms !== "undefined" && DownpourPlatforms.isEromeCdn(url)) return true;
+  if (/\.m3u8(\?|$)|\.mpd(\?|$)/i.test(url)) return true;
+  if (/\/hls\/|\/manifest\/|master\.m3u8|index\.m3u8/i.test(url)) return true;
+  try {
+    const target = new URL(url);
+    const page = new URL(location.href);
+    if (target.origin !== page.origin) return true;
+  } catch (e) {}
+  return false;
 }
 
 let pageFetchSeq = 0;

@@ -789,14 +789,22 @@ async function fetchViaTab(tabId, url, mode) {
   return base64ToBytes(resp.data);
 }
 
+function mustUseTabFetch(url, forceTab) {
+  return forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url)
+    || /\.m3u8(\?|$)/i.test(url) || /\.mpd(\?|$)/i.test(url);
+}
+
 async function fetchText(url, signal, tabId, forceTab) {
-  if (tabId != null && (forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url))) {
+  if (tabId != null) {
     try { return await fetchViaTab(tabId, url, "text"); } catch (e) {
-      if (isEromeCdn(url) || isYoutubeCdn(url)) throw e;
+      if (mustUseTabFetch(url, forceTab)) throw e;
     }
   }
   if (isEromeCdn(url)) {
     throw new Error("Stay on the erome album page and try again");
+  }
+  if (/\.m3u8(\?|$)|\.mpd(\?|$)/i.test(url)) {
+    throw new Error("Stay on the video page and try again");
   }
   const r = await fetch(url, fetchInit(url, signal));
   if (!r.ok) throw new Error(`HTTP ${r.status} fetching manifest`);
@@ -804,9 +812,9 @@ async function fetchText(url, signal, tabId, forceTab) {
 }
 
 async function fetchBytes(url, signal, tabId, forceTab) {
-  if (tabId != null && (forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url))) {
+  if (tabId != null) {
     try { return await fetchViaTab(tabId, url, "bytes"); } catch (e) {
-      if (isEromeCdn(url) || isYoutubeCdn(url)) throw e;
+      if (mustUseTabFetch(url, forceTab)) throw e;
     }
   }
   if (isEromeCdn(url)) {
@@ -821,13 +829,13 @@ async function fetchBytes(url, signal, tabId, forceTab) {
 // progress (via Content-Length). Falls back to a plain read if streaming or the
 // length header is unavailable.
 async function fetchBytesWithProgress(url, job, signal) {
-  const useTab = job.tabId != null && (job.youtubeFetch || job.socialFetch || job.tabFetch || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url));
+  const useTab = job.tabId != null;
   if (useTab) {
     try {
       update(job, { message: "downloading via page…" });
       return await fetchViaTab(job.tabId, url, "bytes");
     } catch (e) {
-      if (isEromeCdn(url) || isYoutubeCdn(url)) throw e;
+      if (mustUseTabFetch(url, job.youtubeFetch || job.socialFetch || job.tabFetch)) throw e;
     }
   }
   if (isEromeCdn(url)) {
@@ -969,7 +977,7 @@ async function runStreamJob(job, options) {
     update(job, { state: "running", progress: 0, message: "fetching manifest…" });
 
     let manifestUrl = job.url;
-    const tabFetch = job.youtubeFetch || job.socialFetch || job.tabFetch;
+    const tabFetch = job.tabId != null || job.youtubeFetch || job.socialFetch || job.tabFetch;
     let text = await fetchText(manifestUrl, signal, job.tabId, tabFetch);
 
     // Master playlist: pick the highest-bandwidth variant.
@@ -1458,7 +1466,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const tabId = request.tabId != null ? request.tabId : (sender.tab && sender.tab.id);
     const job = startJob("stream", request.url, request.filename, tabId);
     if (request.socialFetch) job.socialFetch = true;
-    if (request.tabFetch) job.tabFetch = true;
+    if (request.tabFetch || tabId != null) job.tabFetch = true;
     sendResponse({ ok: true, jobId: job.id });
   } else if (request.action === "downloadDirect") {
     const tabId = request.tabId != null ? request.tabId : (sender.tab && sender.tab.id);
