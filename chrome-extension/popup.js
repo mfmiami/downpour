@@ -43,6 +43,33 @@ const cancelButtonsByUrl = new Map();
 const qualitySelectsByUrl = new Map();
 const progressByUrl = new Map();
 const jobIdByUrl = new Map();
+let jobPollTimer = null;
+
+function jobInProgress(job) {
+  return job && (job.state === "queued" || job.state === "running" || job.state === "saving");
+}
+
+function startJobPoll() {
+  if (jobPollTimer) return;
+  jobPollTimer = setInterval(() => {
+    chrome.runtime.sendMessage({ action: "getJobs" }, (resp) => {
+      if (chrome.runtime.lastError) return;
+      const jobs = (resp && resp.jobs) || [];
+      let anyActive = false;
+      for (const job of jobs) {
+        if (jobInProgress(job)) anyActive = true;
+        applyJobState(job);
+      }
+      if (!anyActive) stopJobPoll();
+    });
+  }, 700);
+}
+
+function stopJobPoll() {
+  if (!jobPollTimer) return;
+  clearInterval(jobPollTimer);
+  jobPollTimer = null;
+}
 
 function shortJobMessage(message) {
   if (!message) return "";
@@ -53,7 +80,7 @@ function shortJobMessage(message) {
 }
 
 function progressFromJob(job) {
-  if (typeof job.progress === "number" && job.progress > 0) return job.progress;
+  if (typeof job.progress === "number") return job.progress;
   if (!job.message) return null;
   const match = /(\d+(?:\.\d+)?)\s*%/.exec(String(job.message));
   return match ? Math.min(100, Math.floor(parseFloat(match[1]))) : null;
@@ -63,6 +90,15 @@ function jobUiUrl(job) {
   return job.watchUrl || job.url;
 }
 
+function findUiUrlForJob(job) {
+  const primary = jobUiUrl(job);
+  if (buttonsByUrl.has(primary)) return primary;
+  for (const [url, id] of jobIdByUrl.entries()) {
+    if (id === job.id) return url;
+  }
+  return primary;
+}
+
 function setBtnVariant(btn, variant) {
   btn.classList.remove("btn-primary", "btn-success", "btn-warning", "btn-danger", "btn-ghost");
   btn.classList.add(variant);
@@ -70,14 +106,15 @@ function setBtnVariant(btn, variant) {
 
 function applyJobState(job) {
   if (job.message) log(`job ${job.id}:`, job.message);
-  const uiUrl = jobUiUrl(job);
+  const uiUrl = findUiUrlForJob(job);
   jobIdByUrl.set(uiUrl, job.id);
   const btn = buttonsByUrl.get(uiUrl);
   const cancelBtn = cancelButtonsByUrl.get(uiUrl);
   const qualitySelect = qualitySelectsByUrl.get(uiUrl);
   if (!btn) return;
 
-  const inProgress = job.state === "queued" || job.state === "running" || job.state === "saving";
+  const inProgress = jobInProgress(job);
+  if (inProgress) startJobPoll();
   if (cancelBtn) cancelBtn.style.display = inProgress ? "inline-flex" : "none";
 
   const progressEl = progressByUrl.get(uiUrl);
@@ -85,10 +122,10 @@ function applyJobState(job) {
     progressEl.container.classList.toggle("active", inProgress);
     if (inProgress) {
       const pct = progressFromJob(job);
-      const known = pct != null && pct > 0;
+      const known = pct != null;
       progressEl.bar.classList.toggle("indeterminate", !known);
       if (known) {
-        progressEl.bar.style.width = `${Math.min(100, pct)}%`;
+        progressEl.bar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
         const detail = shortJobMessage(job.message);
         progressEl.label.textContent = detail ? `${pct}% — ${detail}` : `${pct}%`;
       } else {
@@ -124,7 +161,7 @@ function applyJobState(job) {
     btn.disabled = true;
   } else {
     setBtnVariant(btn, "btn-primary");
-    btn.textContent = job.progress ? `${job.progress}%` : "Downloading…";
+    btn.textContent = typeof job.progress === "number" ? `${job.progress}%` : "Downloading…";
     btn.disabled = true;
   }
 }
@@ -479,7 +516,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     chrome.runtime.sendMessage({ action: "getJobs" }, (resp) => {
       if (chrome.runtime.lastError) return;
-      (resp && resp.jobs || []).forEach(applyJobState);
+      const jobs = (resp && resp.jobs) || [];
+      jobs.forEach(applyJobState);
+      if (jobs.some(jobInProgress)) startJobPoll();
     });
   };
 
