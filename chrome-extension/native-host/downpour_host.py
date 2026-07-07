@@ -14,14 +14,13 @@ import re
 import struct
 import subprocess
 import sys
-import threading
 import time
 import uuid
 from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.6"
+HOST_VERSION = "1.0.7"
 DOWNLOADS = Path.home() / "Downloads"
 SCRIPT_DIR = Path(__file__).resolve().parent
 SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
@@ -133,72 +132,129 @@ def save_to_downloads(data: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "path": str(dest), "bytes": len(raw)}
 
 
-class DownloadJob:
-    def __init__(self, token: str, url: str, filename: str, referer: str) -> None:
-        self.token = token
-        self.url = url
-        self.filename = filename
-        self.referer = referer
-        self.state = "running"
-        self.progress = 0
-        self.message = "downloading…"
-        self.path: str | None = None
-        self.error: str | None = None
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
+def url_job_path(token: str) -> Path:
+    return JOBS_DIR / f"url-{token}.json"
 
-    def _run(self) -> None:
-        try:
-            req = Request(
-                self.url,
-                headers={
-                    "Referer": self.referer,
-                    "User-Agent": (
-                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/120.0.0.0 Safari/537.36"
-                    ),
-                },
-            )
-            dest = unique_path(DOWNLOADS, self.filename)
-            with urlopen(req, timeout=3600) as resp:
-                total = int(resp.headers.get("Content-Length") or 0)
-                received = 0
-                chunk_size = 1024 * 256
-                self.state = "saving"
-                with dest.open("wb") as fh:
-                    while True:
-                        chunk = resp.read(chunk_size)
-                        if not chunk:
-                            break
-                        fh.write(chunk)
-                        received += len(chunk)
-                        if total > 0:
-                            self.progress = min(98, int(received * 100 / total))
-                            self.message = f"downloading {self.progress}%…"
-                        else:
-                            self.message = f"downloading {max(1, received // 1048576)} MB…"
-            self.state = "done"
-            self.progress = 100
-            self.message = "done"
-            self.path = str(dest)
-        except Exception as exc:
-            self.state = "error"
-            self.error = str(exc)
-            self.message = self.error
 
-    def status(self) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "ok": True,
-            "state": self.state,
-            "progress": self.progress,
-            "message": self.message,
-        }
-        if self.path:
-            payload["path"] = self.path
-        if self.error:
-            payload["error"] = self.error
-        return payload
+def read_url_job(token: str) -> dict[str, Any] | None:
+    path = url_job_path(token)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def write_url_job(state: dict[str, Any]) -> None:
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    url_job_path(state["token"]).write_text(
+        json.dumps(state, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def url_status_payload(state: dict[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "ok": True,
+        "state": state.get("state", "running"),
+        "progress": state.get("progress", 0),
+        "message": state.get("message", "downloading…"),
+    }
+    if state.get("path"):
+        payload["path"] = state["path"]
+    if state.get("error"):
+        payload["error"] = state["error"]
+    return payload
+
+
+def run_url_download_worker(token: str) -> None:
+    state = read_url_job(token)
+    if not state:
+        return
+    url = state.get("url") or ""
+    referer = state.get("referer") or "https://www.erome.com/"
+    dest = Path(state.get("dest") or "")
+    if not url or not dest:
+        state["state"] = "error"
+        state["error"] = "Invalid download job"
+        state["message"] = state["error"]
+        write_url_job(state)
+        return
+    try:
+        req = Request(
+            url,
+            headers={
+                "Referer": referer,
+                "Origin": "https://www.erome.com" if "erome.com" in referer else referer,
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
+            },
+        )
+        with urlopen(req, timeout=3600) as resp:
+            total = int(resp.headers.get("Content-Length") or 0)
+            received = 0
+            chunk_size = 1024 * 256
+            state["state"] = "saving"
+            with dest.open("wb") as fh:
+                while True:
+                    chunk = resp.read(chunk_size)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+                    received += len(chunk)
+                    if total > 0:
+                        state["progress"] = min(98, int(received * 100 / total))
+                        state["message"] = f"downloading {state['progress']}%…"
+                    else:
+                        state["message"] = f"downloading {max(1, received // 1048576)} MB…"
+                    write_url_job(state)
+        state["state"] = "done"
+        state["progress"] = 100
+        state["message"] = "done"
+        state["path"] = str(dest)
+    except Exception as exc:
+        state["state"] = "error"
+        state["error"] = str(exc)
+        state["message"] = state["error"]
+        if dest.exists() and dest.stat().st_size == 0:
+            try:
+                dest.unlink()
+            except Exception:
+                pass
+    write_url_job(state)
+
+
+def poll_url_job(token: str) -> dict[str, Any]:
+    state = read_url_job(token)
+    if not state:
+        return {"error": "Unknown download job"}
+
+    current_state = state.get("state", "running")
+    if current_state in ("done", "error", "cancelled"):
+        return url_status_payload(state)
+
+    pid = int(state.get("pid") or 0)
+    if pid_alive(pid):
+        return url_status_payload(state)
+
+    dest = Path(state.get("dest") or "")
+    if dest.exists() and dest.stat().st_size > 32768:
+        state["state"] = "done"
+        state["progress"] = 100
+        state["message"] = "done"
+        state["path"] = str(dest)
+        write_url_job(state)
+        return url_status_payload(state)
+
+    state["state"] = "error"
+    state["error"] = state.get("error") or state.get("message") or "download exited unexpectedly"
+    state["message"] = state["error"]
+    write_url_job(state)
+    return url_status_payload(state)
 
 
 def youtube_job_path(token: str) -> Path:
@@ -442,7 +498,6 @@ def _ytdlp_log_error(log_tail: str) -> str | None:
     return None
 
 
-DOWNLOAD_JOBS: dict[str, DownloadJob] = {}
 TEMP_FILES: dict[str, Path] = {}
 
 
@@ -453,18 +508,44 @@ def download_url_begin(data: dict[str, Any]) -> dict[str, Any]:
     token = str(uuid.uuid4())
     filename = sanitize(data.get("filename") or "video.mp4")
     referer = data.get("referer") or "https://www.erome.com/"
-    DOWNLOAD_JOBS[token] = DownloadJob(token, url, filename, referer)
+    dest = unique_path(DOWNLOADS, filename)
+    state = {
+        "token": token,
+        "url": url,
+        "filename": filename,
+        "referer": referer,
+        "dest": str(dest),
+        "state": "running",
+        "progress": 0,
+        "message": "downloading…",
+    }
+    write_url_job(state)
+    host_py = Path(__file__).resolve()
+    try:
+        proc = subprocess.Popen(
+            [sys.executable, str(host_py), "--download-url", token],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except Exception as exc:
+        return {"error": str(exc)}
+    state["pid"] = proc.pid
+    write_url_job(state)
     return {"ok": True, "token": token}
 
 
 def download_url_status(data: dict[str, Any]) -> dict[str, Any]:
     token = data.get("token") or ""
-    job = DOWNLOAD_JOBS.get(token)
-    if not job:
-        return {"error": "Unknown download job"}
-    payload = job.status()
+    if not token:
+        return {"error": "No download token provided"}
+    payload = poll_url_job(token)
     if payload.get("state") in ("done", "error", "cancelled"):
-        DOWNLOAD_JOBS.pop(token, None)
+        try:
+            url_job_path(token).unlink(missing_ok=True)
+        except Exception:
+            pass
     return payload
 
 
@@ -618,7 +699,21 @@ def handle(message: dict[str, Any]) -> dict[str, Any]:
         return download_url_status(message)
     if msg_type == "downloadUrlAbort":
         token = message.get("token") or ""
-        DOWNLOAD_JOBS.pop(token, None)
+        state = read_url_job(token)
+        if state:
+            pid = int(state.get("pid") or 0)
+            if pid_alive(pid):
+                try:
+                    os.kill(pid, 15)
+                except OSError:
+                    pass
+            state["state"] = "cancelled"
+            state["message"] = "cancelled"
+            write_url_job(state)
+        try:
+            url_job_path(token).unlink(missing_ok=True)
+        except Exception:
+            pass
         return {"ok": True}
     if msg_type == "youtubeBegin":
         return youtube_begin(message)
@@ -646,4 +741,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) >= 3 and sys.argv[1] == "--download-url":
+        run_url_download_worker(sys.argv[2])
+    else:
+        main()

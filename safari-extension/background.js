@@ -1158,6 +1158,7 @@ async function runNativeUrlDownload(job, options) {
       ensureNotCancelled(job);
       const status = await sendNative({ type: "downloadUrlStatus", token });
       if (!status) throw new Error("native download status failed");
+      if (status.error && !status.state) throw new Error(status.error);
       if (status.state === "done") {
         update(job, { state: "done", progress: 100, message: `Saved → ${status.path}`, path: status.path });
         return;
