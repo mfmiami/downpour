@@ -94,8 +94,10 @@
         return out;
       }
       if (platform === "twitter") {
-        return performance.getEntriesByType("resource").map((e) => e.name)
-          .filter((n) => /video\.twimg\.com|pbs\.twimg\.com/i.test(n) && /\.(mp4|m3u8)/i.test(n));
+        return performance.getEntriesByType("resource")
+          .filter((e) => /video\.twimg\.com|pbs\.twimg\.com/i.test(e.name) && /\.(mp4|m3u8)/i.test(e.name))
+          .sort((a, b) => (b.transferSize || 0) - (a.transferSize || 0))
+          .map((e) => e.name);
       }
     } catch (e) {}
     return [];
@@ -103,8 +105,7 @@
 
   function isTwitterInitMp4(url) {
     if (!url || !/\.mp4/i.test(url) || !/twimg\.com/i.test(url)) return false;
-    if (/\/init[\/.]|init\.mp4/i.test(url)) return true;
-    return !/\/vid\//i.test(url);
+    return /\/init[\/.]|init\.mp4/i.test(url);
   }
 
   function isUsableTwitterMp4(url) {

@@ -1495,7 +1495,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const tabId = request.tabId != null ? request.tabId : (sender.tab && sender.tab.id);
     const job = startJob("direct", request.url, request.filename, tabId);
     if (request.socialFetch) job.socialFetch = true;
-    if (request.tabFetch) job.tabFetch = true;
+    if (request.tabFetch || tabId != null) job.tabFetch = true;
     if (request.imageDownload) job.imageDownload = true;
     sendResponse({ ok: true, jobId: job.id });
   } else if (request.action === "downloadYoutube") {

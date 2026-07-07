@@ -44,7 +44,7 @@
   }
 
   function usesTabFetch() {
-    return isGenericPlatform();
+    return isGenericPlatform() || platform === "twitter" || platform === "tiktok" || platform === "instagram";
   }
 
   function buildButtonStyles() {

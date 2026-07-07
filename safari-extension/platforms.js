@@ -740,28 +740,35 @@ const DownpourPlatforms = (function () {
 
   function isTwitterInitMp4(url) {
     if (!url || !/\.mp4/i.test(url) || !/twimg\.com/i.test(url)) return false;
-    if (/\/init[\/.]|init\.mp4/i.test(url)) return true;
-    // X progressive MP4s use /vid/ — DASH init segments do not.
-    return !/\/vid\//i.test(url);
+    return /\/init[\/.]|init\.mp4/i.test(url);
   }
 
   function isUsableTwitterMp4(url) {
     return /\.mp4/i.test(url) && /twimg\.com/i.test(url) && !isTwitterInitMp4(url);
   }
 
-  function pickDirectCdnUrl(platform, video) {
-    if (platform === "tiktok") return pickTikTokCdnUrl(video);
+  function pickTwitterMp4(video) {
     const candidates = [];
     const src = video?.currentSrc || video?.src || "";
-    if (src && !/^blob:|^data:/i.test(src) && isSocialCdnUrl(src)) candidates.push(src);
+    if (src && !/^blob:|^data:/i.test(src) && isUsableTwitterMp4(src)) candidates.push(src);
     try {
       performance.getEntriesByType("resource")
-        .map((e) => e.name)
-        .filter((n) => /\.mp4/i.test(n) && /twimg\.com/i.test(n))
-        .forEach((n) => candidates.push(n));
+        .filter((e) => /\.mp4/i.test(e.name) && /twimg\.com/i.test(e.name))
+        .sort((a, b) => (b.transferSize || 0) - (a.transferSize || 0))
+        .forEach((e) => candidates.push(e.name));
     } catch (e) {}
     const filtered = candidates.filter((url) => isUsableTwitterMp4(url));
     const uniq = Array.from(new Set(filtered));
+    return uniq.length ? uniq[0] : null;
+  }
+
+  function pickDirectCdnUrl(platform, video) {
+    if (platform === "tiktok") return pickTikTokCdnUrl(video);
+    if (platform === "twitter") return pickTwitterMp4(video);
+    const candidates = [];
+    const src = video?.currentSrc || video?.src || "";
+    if (src && !/^blob:|^data:/i.test(src) && isSocialCdnUrl(src)) candidates.push(src);
+    const uniq = Array.from(new Set(candidates));
     return uniq.length ? uniq[uniq.length - 1] : null;
   }
 
@@ -774,7 +781,7 @@ const DownpourPlatforms = (function () {
       if (entries.length) return entries[entries.length - 1];
     } catch (e) {}
     const src = video?.currentSrc || video?.src || "";
-    if (src && /\.m3u8/i.test(src)) return src;
+    if (src && /\.m3u8/i.test(src) && /twimg\.com/i.test(src)) return src;
     return null;
   }
 
@@ -808,7 +815,7 @@ const DownpourPlatforms = (function () {
 
   function isSocialCdnUrl(url) {
     return isTikTokMp4Url(url) || isTikTokM3u8Url(url)
-      || /video\.twimg\.com|pbs\.twimg\.com\/.*\/vid\//i.test(url)
+      || (/twimg\.com/i.test(url) && /\.(mp4|m3u8)/i.test(url))
       || /cdninstagram\.com|fbcdn\.net.*\.mp4/i.test(url);
   }
 
