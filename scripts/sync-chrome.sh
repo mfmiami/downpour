@@ -45,8 +45,17 @@ SAFARI_VER="$(python3 -c "import json; print(json.load(open('$SRC/manifest.json'
 CHROME_VER="$(python3 -c "import json; print(json.load(open('$DEST/manifest.json'))['version'])")"
 
 if [[ "$SAFARI_VER" != "$CHROME_VER" ]]; then
-  echo "WARNING: version mismatch — safari-extension=$SAFARI_VER, chrome-extension/manifest.json=$CHROME_VER" >&2
-  echo "Update chrome-extension/manifest.json version to match." >&2
+  echo "Syncing chrome-extension/manifest.json version: $CHROME_VER → $SAFARI_VER"
+  python3 - "$DEST/manifest.json" "$SAFARI_VER" <<'PY'
+import json, sys
+path, version = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+data["version"] = version
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+PY
 fi
 
 echo "Done. Load chrome-extension/ as an unpacked extension in Chrome."

@@ -276,7 +276,8 @@ async function runYtDlpNativeJob(job) {
   try {
     ensureNotCancelled(job);
     if (job.watchUrl) job.url = job.watchUrl;
-    const watchUrl = resolveYtDlpWatchUrl(job);
+    let watchUrl = resolveYtDlpWatchUrl(job);
+    if (!watchUrl && job.watchUrl) watchUrl = String(job.watchUrl).split("#")[0];
     if (!watchUrl) throw new Error("No video page URL available for yt-dlp");
     const begin = await sendNative({
       type: "youtubeBegin",
@@ -288,6 +289,8 @@ async function runYtDlpNativeJob(job) {
       throw new Error((begin && begin.error) || "yt-dlp download unavailable");
     }
     token = begin.token;
+    let lastProgress = -1;
+    let stallSince = Date.now();
     while (true) {
       ensureNotCancelled(job);
       const status = await sendNative({ type: "youtubeStatus", token });
@@ -304,6 +307,12 @@ async function runYtDlpNativeJob(job) {
       const progress = status.progress != null
         ? status.progress
         : (parseProgressFromMessage(message) ?? job.progress ?? 0);
+      if (progress !== lastProgress) {
+        lastProgress = progress;
+        stallSince = Date.now();
+      } else if (Date.now() - stallSince > 120000) {
+        throw new Error("yt-dlp stalled — quit Chrome, reinstall the native helper, then retry");
+      }
       update(job, { state: "running", progress, message });
       await sleep(500);
     }
@@ -573,9 +582,15 @@ function resolveInstagramWatchUrl(job) {
 }
 
 function resolveYtDlpWatchUrl(job) {
+  if (job.kind === "page") {
+    const url = job.watchUrl || job.url;
+    return url ? String(url).split("#")[0] : null;
+  }
+  if (job.kind === "youtube") return resolveYoutubeWatchUrl(job);
   if (job.kind === "tiktok") return resolveTikTokWatchUrl(job);
   if (job.kind === "twitter") return resolveTwitterWatchUrl(job);
   if (job.kind === "instagram") return resolveInstagramWatchUrl(job);
+  if (job.watchUrl && isYtDlpPageUrl(job.watchUrl)) return String(job.watchUrl).split("#")[0];
   return resolveYoutubeWatchUrl(job);
 }
 
@@ -667,6 +682,125 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 const jobs = {}; // id -> { id, url, filename, kind, state, progress, message, path }
 let jobSeq = 0;
+const chromeStreamSaves = new Map();
+
+function formatByteProgress(received, total) {
+  if (total > 0) {
+    if (total < 1048576) {
+      return `downloading ${Math.round(received / 1024)}/${Math.round(total / 1024)} KB…`;
+    }
+    return `downloading ${Math.round(received / 1048576)}/${Math.round(total / 1048576)} MB…`;
+  }
+  return `downloading ${Math.max(1, Math.round(received / 1048576))} MB…`;
+}
+
+function needsChromeStreamedTabDownload(url) {
+  return isXvideosCdn(url) || isEromeCdn(url);
+}
+
+async function runChromeStreamedTabDownload(job) {
+  return new Promise((resolve, reject) => {
+    const stallTimer = setInterval(() => {
+      const st = chromeStreamSaves.get(job.id);
+      if (!st) return;
+      const idle = Date.now() - (st.lastChunk || st.started);
+      if (st.received === 0 && idle > 45000) {
+        clearInterval(stallTimer);
+        chromeStreamSaves.delete(job.id);
+        if (st.token) {
+          sendNative({ type: "saveAbort", token: st.token }).catch(() => {});
+        }
+        reject(new Error("Download stalled — use the “This page” download button instead"));
+      }
+    }, 5000);
+
+    chrome.tabs.sendMessage(job.tabId, {
+      action: "tabStreamFetch",
+      url: job.url,
+      jobId: job.id,
+      filename: job.filename
+    }, (resp) => {
+      clearInterval(stallTimer);
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      if (!resp || !resp.ok) {
+        reject(new Error((resp && resp.error) || "stream download failed"));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "downpourStream") return;
+  port.onMessage.addListener(async (msg) => {
+    const job = jobs[msg.jobId];
+    if (!job) return;
+    try {
+      if (msg.type === "streamBegin") {
+        update(job, { state: "running", message: "downloading via page…" });
+        const begin = await sendNative({ type: "saveBegin", filename: job.filename });
+        if (!begin || !begin.ok || !begin.token) {
+          throw new Error((begin && begin.error) || "saveBegin failed");
+        }
+        chromeStreamSaves.set(msg.jobId, {
+          token: begin.token,
+          received: 0,
+          total: 0,
+          started: Date.now(),
+          lastChunk: Date.now()
+        });
+        port.postMessage({ type: "ready", jobId: msg.jobId });
+      } else if (msg.type === "streamMeta") {
+        const st = chromeStreamSaves.get(msg.jobId);
+        if (st) st.total = msg.total || 0;
+      } else if (msg.type === "chunk") {
+        const st = chromeStreamSaves.get(msg.jobId);
+        if (!st) return;
+        const resp = await sendNative({ type: "saveChunk", token: st.token, data: msg.data });
+        if (!resp || !resp.ok) throw new Error((resp && resp.error) || "saveChunk failed");
+        st.received += msg.bytes || 0;
+        st.lastChunk = Date.now();
+        update(job, {
+          state: "running",
+          progress: st.total > 0 ? downloadProgress(st.received / st.total) : job.progress,
+          message: formatByteProgress(st.received, st.total)
+        });
+      } else if (msg.type === "end") {
+        const st = chromeStreamSaves.get(msg.jobId);
+        if (!st) return;
+        update(job, { state: "saving", progress: 91, message: `saving ${job.filename}…` });
+        const fin = await sendNative({ type: "saveEnd", token: st.token, filename: job.filename });
+        chromeStreamSaves.delete(msg.jobId);
+        if (!fin || !fin.ok) throw new Error((fin && fin.error) || "saveEnd failed");
+        markJobDone(job, fin.path);
+        port.postMessage({ type: "saved", jobId: msg.jobId });
+      } else if (msg.type === "error") {
+        const st = chromeStreamSaves.get(msg.jobId);
+        if (st && st.token) {
+          try { await sendNative({ type: "saveAbort", token: st.token }); } catch (_) {}
+        }
+        chromeStreamSaves.delete(msg.jobId);
+        if (!job.cancelled) {
+          update(job, { state: "error", message: `ERROR: ${msg.error || "stream failed"}` });
+        }
+        port.postMessage({ type: "failed", jobId: msg.jobId, error: msg.error || "stream failed" });
+      }
+    } catch (e) {
+      const st = chromeStreamSaves.get(msg.jobId);
+      if (st && st.token) {
+        try { await sendNative({ type: "saveAbort", token: st.token }); } catch (_) {}
+      }
+      chromeStreamSaves.delete(msg.jobId);
+      const errMsg = e && e.message ? e.message : String(e);
+      if (!job.cancelled) update(job, { state: "error", message: `ERROR: ${errMsg}` });
+      port.postMessage({ type: "failed", jobId: msg.jobId, error: errMsg });
+    }
+  });
+});
 
 function broadcast(job) {
   const payload = { action: "jobUpdate", job };
@@ -702,6 +836,25 @@ function markJobDone(job, path) {
   update(job, { state: "done", progress: 100, message: `Saved → ${path}`, path });
 }
 
+const MAX_JOBS_RETAINED = 80;
+
+function pruneJobs() {
+  const ids = Object.keys(jobs);
+  if (ids.length <= MAX_JOBS_RETAINED) return;
+  const terminal = ids
+    .map((id) => jobs[id])
+    .filter((j) => j.state === "done" || j.state === "error" || j.state === "cancelled")
+    .sort((a, b) => b.id - a.id);
+  for (let i = 40; i < terminal.length; i++) delete jobs[terminal[i].id];
+}
+
+function progressFromNativeStatus(status, job) {
+  const raw = typeof status.progress === "number" ? status.progress : 0;
+  if (status.state === "saving") return savingProgress(Math.min(1, raw / 100));
+  if (status.state === "done") return 100;
+  return downloadProgress(Math.min(1, raw / 100));
+}
+
 function refreshBadge() {
   const live = Object.values(jobs).filter((j) => j.state === "running" || j.state === "saving");
   const queued = Object.values(jobs).filter((j) => j.state === "queued").length;
@@ -723,13 +876,16 @@ function update(job, patch) {
   } else if (job.state === "done") {
     badge("✓", "#4CAF50");
     setTimeout(() => badge("", "#4688F1"), 8000);
+    pruneJobs();
   } else if (job.state === "error") {
     badge("!", "#d9534f");
+    pruneJobs();
   } else if (job.state === "cancelled") {
     refreshBadge();
     if (!Object.values(jobs).some((j) => j.state === "running" || j.state === "saving" || j.state === "queued")) {
       badge("", "#4688F1");
     }
+    pruneJobs();
   }
   broadcast(job);
 }
@@ -753,6 +909,51 @@ function isTwitterCdn(url) {
 
 function isEromeCdn(url) {
   return /\/\/v\d+\.erome\.com\//i.test(url);
+}
+
+function isXvideosCdn(url) {
+  return /xvideos-cdn\.com/i.test(url);
+}
+
+function isDirectMediaFileUrl(url) {
+  return /\.(mp4|webm|m4v|mov)(\?|$)/i.test(url || "");
+}
+
+function refererForJob(job) {
+  if (job.eromeReferer) return String(job.eromeReferer).split("#")[0];
+  if (job.watchUrl) return String(job.watchUrl).split("#")[0];
+  return null;
+}
+
+function isYtDlpPageUrl(url) {
+  if (typeof DownpourPlatforms !== "undefined" && DownpourPlatforms.isYtDlpPageUrl) {
+    return DownpourPlatforms.isYtDlpPageUrl(url);
+  }
+  if (!url || /^(blob:|data:)/i.test(url)) return false;
+  if (isYoutubeWatchUrl(url) || isTikTokWatchUrl(url) || isTwitterWatchUrl(url) || isInstagramWatchUrl(url)) {
+    return false;
+  }
+  if (/\.(mp4|webm|m4v|mov|mkv|m3u8|mpd|ts|m4s)(\?|$)/i.test(url)) return false;
+  try {
+    const u = new URL(url);
+    return /^https?:$/i.test(u.protocol);
+  } catch (e) {
+    return false;
+  }
+}
+
+async function tryPageYtDlpFallback(job) {
+  const pageUrl = job.watchUrl;
+  if (!isYtDlpPageUrl(pageUrl)) return false;
+  if (!(await nativeHostReachable())) return false;
+  try {
+    job.url = pageUrl;
+    update(job, { state: "running", progress: 0, message: "retrying with yt-dlp…" });
+    await runYtDlpNativeJob(job);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function eromeRefererForCdn(url) {
@@ -793,6 +994,9 @@ function fetchInit(url, signal) {
     init.headers = { Referer: "https://x.com/" };
   } else if (isEromeCdn(url)) {
     init.headers = { Referer: eromeRefererForCdn(url) };
+  } else if (isXvideosCdn(url)) {
+    init.headers = { Referer: "https://www.xvideos.com/", Origin: "https://www.xvideos.com" };
+    init.credentials = "include";
   }
   return init;
 }
@@ -812,7 +1016,7 @@ async function fetchViaTab(tabId, url, mode) {
 }
 
 function mustUseTabFetch(url, forceTab) {
-  return forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url)
+  return forceTab || isYoutubeCdn(url) || isSocialCdn(url) || isEromeCdn(url) || isXvideosCdn(url)
     || /\.m3u8(\?|$)/i.test(url) || /\.mpd(\?|$)/i.test(url);
 }
 
@@ -855,7 +1059,21 @@ async function fetchBytesWithProgress(url, job, signal) {
   if (useTab) {
     try {
       update(job, { message: "downloading via page…" });
-      return await fetchViaTab(job.tabId, url, "bytes");
+      const started = Date.now();
+      const bytesPromise = fetchViaTab(job.tabId, url, "bytes");
+      const timeoutMs = 45000;
+      const bytes = await Promise.race([
+        bytesPromise,
+        new Promise((_, reject) => {
+          const timer = setInterval(() => {
+            if (Date.now() - started < timeoutMs) return;
+            clearInterval(timer);
+            reject(new Error("Page download stalled — try another link or “This page”"));
+          }, 2000);
+          bytesPromise.finally(() => clearInterval(timer));
+        })
+      ]);
+      return bytes;
     } catch (e) {
       if (mustUseTabFetch(url, job.youtubeFetch || job.socialFetch || job.tabFetch)) throw e;
     }
@@ -994,6 +1212,17 @@ async function runStreamJob(job, options) {
   const ctrl = controllers[job.id];
   const signal = ctrl && ctrl.signal;
   try {
+    if (!rethrow) {
+      try {
+        if (await tryChromeStreamYtDlp(job, rethrow)) return;
+      } catch (e) {
+        if (wasCancelled(job, e)) {
+          update(job, { state: "cancelled", message: "Cancelled" });
+          return;
+        }
+        if (rethrow) throw e;
+      }
+    }
     ensureNotCancelled(job);
     assertFetchable(job.url);
     update(job, { state: "running", progress: 0, message: "fetching manifest…" });
@@ -1054,14 +1283,24 @@ async function runStreamJob(job, options) {
       const parts = [];
       if (initSegmentUrl) parts.push(sniffBytes);
       let downloaded = 0;
+      let failed = 0;
       for (let i = 0; i < segments.length; i++) {
         ensureNotCancelled(job);
         try {
           const buf = (!initSegmentUrl && i === 0) ? sniffBytes : await fetchBytes(segments[i], signal, job.tabId, tabFetch);
           parts.push(buf);
-        } catch (e) { if (wasCancelled(job, e)) throw e; /* else skip failed segment */ }
+        } catch (e) {
+          if (wasCancelled(job, e)) throw e;
+          failed++;
+        }
         downloaded++;
         update(job, { progress: downloadProgress(downloaded / segments.length) });
+      }
+      if (failed > 0 && failed / segments.length > 0.1) {
+        throw new Error(`Failed to download ${failed}/${segments.length} segments`);
+      }
+      if (parts.length === 0) {
+        throw new Error("All segments failed to download");
       }
       finalBytes = concatChunks(parts);
       try {
@@ -1081,17 +1320,24 @@ async function runStreamJob(job, options) {
       });
 
       let downloaded = 0;
+      let failed = 0;
       for (let i = 0; i < segments.length; i++) {
         ensureNotCancelled(job);
         try {
           const arrayBuffer = (i === 0) ? sniffBytes : await fetchBytes(segments[i], signal, job.tabId, tabFetch);
           transmuxer.push(arrayBuffer);
-        } catch (e) { if (wasCancelled(job, e)) throw e; /* else skip failed segment */ }
+        } catch (e) {
+          if (wasCancelled(job, e)) throw e;
+          failed++;
+        }
         downloaded++;
         update(job, { progress: downloadProgress(downloaded / segments.length) });
       }
       transmuxer.flush();
 
+      if (failed > 0 && failed / segments.length > 0.1) {
+        throw new Error(`Failed to download ${failed}/${segments.length} segments`);
+      }
       if (!initSegment || mediaSegments.length === 0) {
         throw new Error("Transmuxer produced no output.");
       }
@@ -1118,6 +1364,7 @@ async function runStreamJob(job, options) {
   } catch (e) {
     if (rethrow) throw e;
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
+    else if (await tryPageYtDlpFallback(job)) return;
     else update(job, { state: "error", message: `ERROR: ${e.message}` });
   } finally {
     if (!rethrow) delete controllers[job.id];
@@ -1168,6 +1415,36 @@ function filenameWithImageExtension(filename, bytes) {
   return `${base}.${ext}`;
 }
 
+async function tryChromeNativeFileDownload(job, rethrow) {
+  if (!usesChromeDownloads() || !(await nativeHostReachable())) return false;
+  if (job.imageDownload || !isDirectMediaFileUrl(job.url)) return false;
+  try {
+    ensureNotCancelled(job);
+    assertFetchable(job.url);
+    await runNativeUrlDownload(job, { referer: refererForJob(job) });
+    return true;
+  } catch (e) {
+    if (wasCancelled(job, e)) throw e;
+    if (rethrow) throw e;
+    return false;
+  }
+}
+
+async function tryChromeStreamYtDlp(job, rethrow) {
+  if (!usesChromeDownloads() || !(await nativeHostReachable())) return false;
+  if (!/\.m3u8(\?|$)/i.test(job.url || "")) return false;
+  try {
+    ensureNotCancelled(job);
+    update(job, { state: "running", progress: 0, message: "starting yt-dlp…" });
+    await runYtDlpNativeJob(job);
+    return true;
+  } catch (e) {
+    if (wasCancelled(job, e)) throw e;
+    if (rethrow) throw e;
+    return false;
+  }
+}
+
 async function runNativeUrlDownload(job, options) {
   let token = null;
   try {
@@ -1178,7 +1455,7 @@ async function runNativeUrlDownload(job, options) {
       type: "downloadUrlBegin",
       url: job.url,
       filename: job.filename,
-      referer: options && options.referer
+      referer: (options && options.referer) || refererForJob(job) || undefined
     });
     if (!begin || !begin.ok || !begin.token) {
       throw new Error((begin && begin.error) || "native download unavailable");
@@ -1198,7 +1475,7 @@ async function runNativeUrlDownload(job, options) {
       if (status.state === "cancelled") throw new Error("cancelled");
       update(job, {
         state: status.state === "saving" ? "saving" : "running",
-        progress: typeof status.progress === "number" ? status.progress : job.progress,
+        progress: progressFromNativeStatus(status, job),
         message: status.message || job.message
       });
       await sleep(400);
@@ -1257,6 +1534,51 @@ async function runEromeTabDownload(job, options) {
 
 async function runDirectJob(job, options) {
   const rethrow = options && options.rethrow;
+  if (!rethrow) {
+    try {
+      if (await tryChromeNativeFileDownload(job, rethrow)) {
+        delete controllers[job.id];
+        return;
+      }
+    } catch (e) {
+      if (wasCancelled(job, e)) {
+        update(job, { state: "cancelled", message: "Cancelled" });
+        delete controllers[job.id];
+        return;
+      }
+      if (rethrow) throw e;
+    }
+  }
+  if (usesChromeDownloads() && needsChromeStreamedTabDownload(job.url) && job.tabId != null) {
+    if (!(await nativeHostReachable())) {
+      update(job, {
+        state: "error",
+        message: `ERROR: Chrome needs the Downpour native helper for this site. ${nativeHostHelpMessage()}`
+      });
+      delete controllers[job.id];
+      return;
+    }
+    try {
+      ensureNotCancelled(job);
+      assertFetchable(job.url);
+      if (job.watchUrl && isYtDlpPageUrl(job.watchUrl)) {
+        job.url = job.watchUrl;
+        update(job, { state: "running", progress: 0, message: "starting yt-dlp…" });
+        await runYtDlpNativeJob(job);
+        return;
+      }
+      update(job, { state: "running", progress: 0, message: "downloading via page…" });
+      await runChromeStreamedTabDownload(job);
+      return;
+    } catch (e) {
+      if (rethrow) throw e;
+      if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
+      else update(job, { state: "error", message: `ERROR: ${e.message}` });
+    } finally {
+      if (!rethrow) delete controllers[job.id];
+    }
+    return;
+  }
   if (isEromeCdn(job.url)) {
     if (!globalThis.__downpourSkipEromeNative) {
       return runEromeNativeDownload(job);
@@ -1302,6 +1624,7 @@ async function runDirectJob(job, options) {
   } catch (e) {
     if (rethrow) throw e;
     if (wasCancelled(job, e)) update(job, { state: "cancelled", message: "Cancelled" });
+    else if (await tryPageYtDlpFallback(job)) return;
     else update(job, { state: "error", message: `ERROR: ${e.message}` });
   } finally {
     if (!rethrow) delete controllers[job.id];
@@ -1458,11 +1781,17 @@ function startJob(kind, url, filename, tabId, options) {
     if (job.watchUrl) job.url = job.watchUrl;
     job.quality = (options && options.quality === "best") ? "best" : "normal";
   }
+  if (kind === "page") {
+    const pageUrl = (options && options.pageUrl) || url;
+    job.watchUrl = pageUrl;
+    job.url = pageUrl;
+    job.quality = (options && options.quality === "best") ? "best" : "normal";
+  }
   jobs[job.id] = job;
   controllers[job.id] = new AbortController();
   const runner = kind === "stream" ? runStreamJob
     : kind === "youtube" ? runYoutubeJob
-    : (kind === "tiktok" || kind === "twitter" || kind === "instagram") ? runYtDlpJob
+    : (kind === "page" || kind === "tiktok" || kind === "twitter" || kind === "instagram") ? runYtDlpJob
     : runDirectJob;
   enqueueJob(job, runner);
   return job;
@@ -1490,6 +1819,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const job = startJob("stream", request.url, request.filename, tabId);
     if (request.socialFetch) job.socialFetch = true;
     if (request.tabFetch || tabId != null) job.tabFetch = true;
+    if (request.pageUrl) job.watchUrl = request.pageUrl;
     sendResponse({ ok: true, jobId: job.id });
   } else if (request.action === "downloadDirect") {
     const tabId = request.tabId != null ? request.tabId : (sender.tab && sender.tab.id);
@@ -1497,6 +1827,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.socialFetch) job.socialFetch = true;
     if (request.tabFetch || tabId != null) job.tabFetch = true;
     if (request.imageDownload) job.imageDownload = true;
+    if (request.pageUrl) job.watchUrl = request.pageUrl;
     sendResponse({ ok: true, jobId: job.id });
   } else if (request.action === "downloadYoutube") {
     const job = startJob("youtube", request.url, request.filename, request.tabId, { quality: request.quality });
@@ -1508,6 +1839,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const platform = request.platform || "tiktok";
     const tabId = request.tabId != null ? request.tabId : (sender.tab && sender.tab.id);
     const job = startJob(platform, request.url, request.filename, tabId, { quality: request.quality });
+    sendResponse({ ok: true, jobId: job.id });
+  } else if (request.action === "downloadPage") {
+    const tabId = request.tabId != null ? request.tabId : (sender.tab && sender.tab.id);
+    const job = startJob("page", request.url, request.filename, tabId, {
+      pageUrl: request.pageUrl || request.url,
+      quality: request.quality
+    });
+    if (request.pageUrl) job.watchUrl = request.pageUrl;
     sendResponse({ ok: true, jobId: job.id });
   } else if (request.action === "cancelJob") {
     cancelJob(request.jobId);
@@ -1529,6 +1868,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "getTabId") {
     sendResponse({ tabId: sender.tab && sender.tab.id != null ? sender.tab.id : null });
     return true;
+  } else if (request.action === "pingNative") {
+    nativeHostReachable().then((ok) => sendResponse({ ok }));
+    return true;
   } else if (request.action === "getJobs") {
     sendResponse({ jobs: Object.values(jobs) });
   } else if (request.action === "getVideos") {
@@ -1537,7 +1879,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       videos: Array.from(detectedVideos[tabId] || []),
       youtubeUrl: youtubePages[tabId] || null,
       tiktokUrl: tiktokPages[tabId] || null,
-      twitterUrl: twitterPages[tabId] || null
+      twitterUrl: twitterPages[tabId] || null,
+      instagramUrl: instagramPages[tabId] || null
     });
   } else if (request.action === "clearVideos") {
     const tabId = request.tabId;

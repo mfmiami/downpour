@@ -15,6 +15,6 @@ Versioned builds are also kept here as `Downpour-<version>.dmg`.
 
 **Safari:** enable **Downpour** in **Safari → Settings → Extensions**
 
-**Chrome:** load the unpacked extension from the folder the installer opens in Finder (`chrome://extensions` → Developer mode → Load unpacked)
+**Chrome:** load the unpacked extension from the folder the installer opens in Finder (`chrome://extensions` → Developer mode → Load unpacked). For tube sites and YouTube, also install the **native helper** — see [Chrome install](../README.md#chrome--chromium--manual-install) in the main README.
 
 See the main [README](../README.md) for details.

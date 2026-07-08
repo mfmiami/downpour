@@ -99,8 +99,27 @@ const DownpourPlatforms = (function () {
     return getOverlayPlatform(url) != null;
   }
 
+  function isFragmentMediaUrl(url) {
+    if (!url || /\.m3u8(\?|$)|\.mpd(\?|$)/i.test(url)) return false;
+    return /\.m4s(\?|$)|\.ts(\?|$)|\/seg(?:ment)?[-_/]|\/chunk[-_/]/i.test(url);
+  }
+
+  function isXvideosHost(url) {
+    const host = hostOf(url);
+    return host === "xvideos.com" || host.endsWith(".xvideos.com");
+  }
+
+  function isXvideosCdn(url) {
+    return !!url && /xvideos-cdn\.com/i.test(url);
+  }
+
+  function isXvideosMp4Url(url) {
+    return isXvideosCdn(url) && /\.mp4/i.test(url) && /video_\d+p/i.test(url);
+  }
+
   function isDirectMediaUrl(url) {
     if (!url || /^blob:|^data:/i.test(url)) return false;
+    if (isFragmentMediaUrl(url)) return false;
     try {
       const u = new URL(url);
       if (!/^https?:$/i.test(u.protocol)) return false;
@@ -117,27 +136,54 @@ const DownpourPlatforms = (function () {
 
   function isLikelyVideoResource(url) {
     if (!url || /^blob:|^data:/i.test(url)) return false;
+    if (isFragmentMediaUrl(url)) return false;
     if (isSocialCdnUrl(url)) return false;
     if (/googlevideo\.com/i.test(url)) return false;
+    if (/thumb-cdn\d*\.|\/thumbs?\//i.test(url) && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url)) return false;
     if (isEromeVideoUrl(url)) return true;
+    if (isXvideosMp4Url(url)) return true;
     return isDirectMediaUrl(url) || isStreamMediaUrl(url)
       || /\/(?:hls|dash|manifest|playlist)(?:\/|\.)/i.test(url);
   }
 
   function genericVideoUrlScore(url) {
     if (!url) return -1;
+    if (isFragmentMediaUrl(url)) return -1;
     if (/\.erome\.com/i.test(url) && (/\/thumbs?\//i.test(url) || /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url))) {
       return -1;
     }
     let score = 0;
     if (isEromeVideoUrl(url)) score += 650;
+    if (isXvideosMp4Url(url)) score += 700;
     if (isStreamMediaUrl(url)) score += 500;
     if (/\.mp4/i.test(url)) score += 400;
     if (/\.webm/i.test(url)) score += 350;
+    if (/video_1440p|video_1080p/i.test(url)) score += 140;
+    if (/video_720p/i.test(url)) score += 110;
+    if (/video_480p|video_360p/i.test(url)) score += 60;
     if (/1080|720|hd|_480p|_720p|_1080p/i.test(url)) score += 80;
-    if (/preview|thumb|poster|sprite|storyboard/i.test(url)) score -= 500;
+    if (/preview|thumb|poster|sprite|storyboard|thumb-cdn/i.test(url)) score -= 500;
     score += Math.min(url.length, 200);
     return score;
+  }
+
+  function collectXvideosVideoUrls() {
+    if (!isXvideosHost(location.href)) return [];
+    const seen = new Set();
+    const out = [];
+    const add = (url) => {
+      if (!isXvideosMp4Url(url) || seen.has(url)) return;
+      seen.add(url);
+      out.push(url);
+    };
+    try {
+      const re = /https?:\/\/[^"'\s<>]+xvideos-cdn\.com\/[^"'\s<>]+video_\d+p\.mp4[^"'\s<>]*/gi;
+      let m;
+      while ((m = re.exec(document.documentElement.innerHTML)) !== null) add(m[0]);
+    } catch (e) {}
+    document.querySelectorAll('a[href*="xvideos-cdn.com"][href*=".mp4"]').forEach((a) => add(a.href));
+    out.sort((a, b) => genericVideoUrlScore(b) - genericVideoUrlScore(a));
+    return out;
   }
 
   function collectEromeVideoUrls(videoEl) {
@@ -193,6 +239,7 @@ const DownpourPlatforms = (function () {
     videoUrlsFromPerformance().forEach(add);
     (detectedUrls || []).forEach(add);
     if (isEromeHost(location.href)) collectEromeVideoUrls(videoEl).forEach(add);
+    if (isXvideosHost(location.href)) collectXvideosVideoUrls().forEach(add);
     out.sort((a, b) => genericVideoUrlScore(b) - genericVideoUrlScore(a));
     return out;
   }

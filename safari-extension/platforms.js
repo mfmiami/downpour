@@ -88,6 +88,88 @@ const DownpourPlatforms = (function () {
     return /\.mp4/i.test(url) && !/\/thumbs?\//i.test(url);
   }
 
+  function isXhamsterHost(url) {
+    const host = hostOf(url);
+    return host === "xhamster.com" || host.endsWith(".xhamster.com")
+      || /^xhamster\d*\.com$/i.test(host)
+      || host === "xhopen.com" || host.endsWith(".xhopen.com")
+      || host === "xh.video";
+  }
+
+  function isXhamsterCdn(url) {
+    return !!url && /(?:xhcdn|xhamster)\.(?:com|net)/i.test(url)
+      && (/\.m3u8/i.test(url) || /\.mp4/i.test(url));
+  }
+
+  function isSpankbangHost(url) {
+    const host = hostOf(url);
+    return host === "spankbang.com" || host.endsWith(".spankbang.com")
+      || /^spankbang\./i.test(host);
+  }
+
+  function isSpankbangCdn(url) {
+    return !!url && /(?:spankbang|sb-cd|vdownload)\./i.test(url)
+      && (/\.m3u8/i.test(url) || /\.mp4/i.test(url));
+  }
+
+  function isDirectFileUrl(url) {
+    if (!url) return false;
+    try {
+      const path = new URL(url).pathname;
+      return /\.(mp4|webm|m4v|mov|mkv|m3u8|mpd|ts|m4s)(\?|$)/i.test(path);
+    } catch (e) {}
+    return /\.(mp4|webm|m4v|mov|mkv|m3u8|mpd|ts|m4s)(\?|$)/i.test(url);
+  }
+
+  function looksLikeVideoPagePath(pathname) {
+    if (!pathname || pathname === "/" || pathname === "/index.html") return false;
+    return /\/(?:video|videos|watch|embed|play|movie|movies|clip|view_video|a)\b/i.test(pathname)
+      || /^\/[^/]+\/video\//i.test(pathname)
+      || /\/video[-_]/i.test(pathname);
+  }
+
+  function isYtDlpPageUrl(url) {
+    if (!url || /^(blob:|data:|mediasource:)/i.test(url)) return false;
+    if (isYoutubeHost(url)) return false;
+    if (getSocialPlatform(url)) return false;
+    if (isDirectFileUrl(url) || isFragmentMediaUrl(url)) return false;
+    try {
+      const u = new URL(url);
+      return /^https?:$/i.test(u.protocol);
+    } catch (e) {}
+    return false;
+  }
+
+  function pageDownloadUrl(href) {
+    if (!isYtDlpPageUrl(href)) return null;
+    try {
+      const u = new URL(href);
+      u.hash = "";
+      u.search = "";
+      return u.toString();
+    } catch (e) {}
+    return String(href || "").split("#")[0].split("?")[0];
+  }
+
+  function shouldPreferChromePageDownload(tabUrl, detectedCount) {
+    if (!isYtDlpPageUrl(tabUrl)) return false;
+    if (detectedCount > 0) return true;
+    try {
+      return looksLikeVideoPagePath(new URL(tabUrl).pathname);
+    } catch (e) {}
+    return false;
+  }
+
+  function isChromeExtension() {
+    try {
+      return typeof chrome !== "undefined"
+        && chrome.runtime
+        && chrome.runtime.getManifest
+        && (chrome.runtime.getManifest().permissions || []).includes("scripting");
+    } catch (e) {}
+    return false;
+  }
+
   function getOverlayPlatform(url) {
     const social = getSocialPlatform(url);
     if (social) return social;
@@ -99,8 +181,27 @@ const DownpourPlatforms = (function () {
     return getOverlayPlatform(url) != null;
   }
 
+  function isFragmentMediaUrl(url) {
+    if (!url || /\.m3u8(\?|$)|\.mpd(\?|$)/i.test(url)) return false;
+    return /\.m4s(\?|$)|\.ts(\?|$)|\/seg(?:ment)?[-_/]|\/chunk[-_/]/i.test(url);
+  }
+
+  function isXvideosHost(url) {
+    const host = hostOf(url);
+    return host === "xvideos.com" || host.endsWith(".xvideos.com");
+  }
+
+  function isXvideosCdn(url) {
+    return !!url && /xvideos-cdn\.com/i.test(url);
+  }
+
+  function isXvideosMp4Url(url) {
+    return isXvideosCdn(url) && /\.mp4/i.test(url) && /video_\d+p/i.test(url);
+  }
+
   function isDirectMediaUrl(url) {
     if (!url || /^blob:|^data:/i.test(url)) return false;
+    if (isFragmentMediaUrl(url)) return false;
     try {
       const u = new URL(url);
       if (!/^https?:$/i.test(u.protocol)) return false;
@@ -117,27 +218,58 @@ const DownpourPlatforms = (function () {
 
   function isLikelyVideoResource(url) {
     if (!url || /^blob:|^data:/i.test(url)) return false;
+    if (isFragmentMediaUrl(url)) return false;
     if (isSocialCdnUrl(url)) return false;
     if (/googlevideo\.com/i.test(url)) return false;
+    if (/thumb-cdn\d*\.|\/thumbs?\//i.test(url) && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url)) return false;
     if (isEromeVideoUrl(url)) return true;
+    if (isXvideosMp4Url(url)) return true;
+    if (isXhamsterCdn(url)) return true;
+    if (isSpankbangCdn(url)) return true;
     return isDirectMediaUrl(url) || isStreamMediaUrl(url)
       || /\/(?:hls|dash|manifest|playlist)(?:\/|\.)/i.test(url);
   }
 
   function genericVideoUrlScore(url) {
     if (!url) return -1;
+    if (isFragmentMediaUrl(url)) return -1;
     if (/\.erome\.com/i.test(url) && (/\/thumbs?\//i.test(url) || /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url))) {
       return -1;
     }
     let score = 0;
     if (isEromeVideoUrl(url)) score += 650;
+    if (isXvideosMp4Url(url)) score += 700;
+    if (isXhamsterCdn(url)) score += 680;
+    if (isSpankbangCdn(url)) score += 670;
     if (isStreamMediaUrl(url)) score += 500;
     if (/\.mp4/i.test(url)) score += 400;
     if (/\.webm/i.test(url)) score += 350;
+    if (/video_1440p|video_1080p/i.test(url)) score += 140;
+    if (/video_720p/i.test(url)) score += 110;
+    if (/video_480p|video_360p/i.test(url)) score += 60;
     if (/1080|720|hd|_480p|_720p|_1080p/i.test(url)) score += 80;
-    if (/preview|thumb|poster|sprite|storyboard/i.test(url)) score -= 500;
+    if (/preview|thumb|poster|sprite|storyboard|thumb-cdn/i.test(url)) score -= 500;
     score += Math.min(url.length, 200);
     return score;
+  }
+
+  function collectXvideosVideoUrls() {
+    if (!isXvideosHost(location.href)) return [];
+    const seen = new Set();
+    const out = [];
+    const add = (url) => {
+      if (!isXvideosMp4Url(url) || seen.has(url)) return;
+      seen.add(url);
+      out.push(url);
+    };
+    try {
+      const re = /https?:\/\/[^"'\s<>]+xvideos-cdn\.com\/[^"'\s<>]+video_\d+p\.mp4[^"'\s<>]*/gi;
+      let m;
+      while ((m = re.exec(document.documentElement.innerHTML)) !== null) add(m[0]);
+    } catch (e) {}
+    document.querySelectorAll('a[href*="xvideos-cdn.com"][href*=".mp4"]').forEach((a) => add(a.href));
+    out.sort((a, b) => genericVideoUrlScore(b) - genericVideoUrlScore(a));
+    return out;
   }
 
   function collectEromeVideoUrls(videoEl) {
@@ -193,6 +325,7 @@ const DownpourPlatforms = (function () {
     videoUrlsFromPerformance().forEach(add);
     (detectedUrls || []).forEach(add);
     if (isEromeHost(location.href)) collectEromeVideoUrls(videoEl).forEach(add);
+    if (isXvideosHost(location.href)) collectXvideosVideoUrls().forEach(add);
     out.sort((a, b) => genericVideoUrlScore(b) - genericVideoUrlScore(a));
     return out;
   }
@@ -829,6 +962,16 @@ const DownpourPlatforms = (function () {
     isEromeHost,
     isEromeCdn,
     isEromeVideoUrl,
+    isXhamsterHost,
+    isXhamsterCdn,
+    isSpankbangHost,
+    isSpankbangCdn,
+    isDirectFileUrl,
+    isYtDlpPageUrl,
+    pageDownloadUrl,
+    shouldPreferChromePageDownload,
+    looksLikeVideoPagePath,
+    isChromeExtension,
     eromeRefererForUrl,
     eromeAlbumUrlFromMediaUrl,
     collectEromeVideoUrls,

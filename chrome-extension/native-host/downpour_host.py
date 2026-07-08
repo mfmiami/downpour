@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Chrome native messaging host for Downpour (macOS).
+"""Chrome native messaging host for Downpour (macOS / Windows / Linux).
 
-Handles file saves and optional yt-dlp / URL downloads into ~/Downloads.
-Install with: ./install-native-host.sh
+Handles file saves, yt-dlp jobs, and direct URL downloads into the user Downloads folder.
+Install: install-native-host.sh (macOS) or install-native-host.ps1 (Windows).
 """
 
 from __future__ import annotations
@@ -20,13 +20,40 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
-HOST_VERSION = "1.0.9"
-DOWNLOADS = Path.home() / "Downloads"
+HOST_VERSION = "1.0.16"
+IMPERSONATE_TARGET = "chrome-133:macos-15"
+_impersonate_available: bool | None = None
+
+
+def downloads_dir() -> Path:
+    home = Path.home()
+    if sys.platform == "win32":
+        userprofile = os.environ.get("USERPROFILE")
+        base = Path(userprofile) if userprofile else home
+        return base / "Downloads"
+    return home / "Downloads"
+
+
+def support_dir() -> Path:
+    home = Path.home()
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        base = Path(appdata) if appdata else home / "AppData" / "Roaming"
+        return base / "Downpour"
+    if sys.platform == "darwin":
+        return home / "Library" / "Application Support" / "Downpour"
+    xdg = os.environ.get("XDG_CONFIG_HOME")
+    base = Path(xdg) if xdg else home / ".config"
+    return base / "downpour"
+
+
+DOWNLOADS = downloads_dir()
 SCRIPT_DIR = Path(__file__).resolve().parent
-SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Downpour"
+SUPPORT_DIR = support_dir()
 SUPPORT_YTDLP = SUPPORT_DIR / "yt-dlp.py"
 LOG_PATH = SUPPORT_DIR / "native-host.log"
 JOBS_DIR = SUPPORT_DIR / "jobs"
+FFMPEG_BINARY = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
 
 
 def resolve_ytdlp_script() -> Path:
@@ -38,7 +65,7 @@ def resolve_ytdlp_script() -> Path:
 
 def resolve_ffmpeg_dir() -> str | None:
     for directory in (SUPPORT_DIR / "ffmpeg", SCRIPT_DIR / "ffmpeg"):
-        binary = directory / "ffmpeg"
+        binary = directory / FFMPEG_BINARY
         if binary.is_file() and os.access(binary, os.X_OK):
             return str(directory)
 
@@ -46,18 +73,19 @@ def resolve_ffmpeg_dir() -> str | None:
     for part in os.environ.get("PATH", "").split(os.pathsep):
         if part:
             search_dirs.append(Path(part))
-    search_dirs.extend([
-        Path("/opt/homebrew/bin"),
-        Path("/usr/local/bin"),
-        Path("/usr/bin"),
-    ])
+    if sys.platform == "darwin":
+        search_dirs.extend([
+            Path("/opt/homebrew/bin"),
+            Path("/usr/local/bin"),
+            Path("/usr/bin"),
+        ])
     seen: set[str] = set()
     for directory in search_dirs:
         key = str(directory)
         if key in seen:
             continue
         seen.add(key)
-        binary = directory / "ffmpeg"
+        binary = directory / FFMPEG_BINARY
         if binary.is_file() and os.access(binary, os.X_OK):
             return key
     return None
@@ -190,24 +218,25 @@ def run_url_download_worker(token: str) -> None:
         state["message"] = state["error"]
         write_url_job(state)
         return
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+    }
+    if referer:
+        headers["Referer"] = referer
+        origin = origin_from_referer(referer)
+        if origin:
+            headers["Origin"] = origin
     try:
-        req = Request(
-            url,
-            headers={
-                "Referer": referer,
-                "Origin": "https://www.erome.com" if "erome.com" in referer else referer,
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-            },
-        )
+        req = Request(url, headers=headers)
         with urlopen(req, timeout=3600) as resp:
             total = int(resp.headers.get("Content-Length") or 0)
             received = 0
             chunk_size = 1024 * 256
-            state["state"] = "saving"
+            state["state"] = "running"
             with dest.open("wb") as fh:
                 while True:
                     chunk = resp.read(chunk_size)
@@ -219,6 +248,7 @@ def run_url_download_worker(token: str) -> None:
                         state["progress"] = min(98, int(received * 100 / total))
                         state["message"] = f"downloading {state['progress']}%…"
                     else:
+                        state["progress"] = 0
                         state["message"] = f"downloading {max(1, received // 1048576)} MB…"
                     write_url_job(state)
         if saved_file_ok(dest):
@@ -387,6 +417,74 @@ def is_social_media_url(url: str) -> bool:
     )
 
 
+DIRECT_MEDIA_RE = re.compile(
+    r"\.(mp4|webm|m4v|mov|mkv|m3u8|mpd|ts|m4s)(\?|$)", re.I
+)
+
+
+def is_youtube_page_url(url: str) -> bool:
+    lower = url.lower()
+    return "youtube.com" in lower or "youtu.be" in lower
+
+
+def origin_from_referer(referer: str) -> str:
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(referer)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+    except Exception:
+        pass
+    return referer or ""
+
+
+def is_direct_media_url(url: str) -> bool:
+    return bool(url and DIRECT_MEDIA_RE.search(url))
+
+
+def is_generic_page_url(url: str) -> bool:
+    """Any normal web page for yt-dlp — not social, YouTube, or a direct media file."""
+    if not url or url.lower().startswith(("blob:", "data:")):
+        return False
+    if is_social_media_url(url) or is_youtube_page_url(url):
+        return False
+    if is_direct_media_url(url):
+        return False
+    try:
+        from urllib.parse import urlparse
+        return urlparse(url).scheme in ("http", "https")
+    except Exception:
+        return False
+
+
+def use_browser_cookies(url: str) -> bool:
+    return is_social_media_url(url) or is_generic_page_url(url) or is_direct_media_url(url)
+
+
+def impersonate_available() -> bool:
+    global _impersonate_available
+    if _impersonate_available is not None:
+        return _impersonate_available
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-u", str(resolve_ytdlp_script()), "--list-impersonate-targets"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        text = (proc.stdout or "") + (proc.stderr or "")
+        available = False
+        for line in text.splitlines():
+            lower = line.lower()
+            if "chrome" in lower and "(unavailable)" not in lower:
+                available = True
+                break
+        _impersonate_available = available
+    except Exception:
+        _impersonate_available = False
+    return _impersonate_available
+
+
 def build_yt_dlp_cmd(url: str, filename: str, quality: str) -> tuple[list[str], str]:
     ytdlp = resolve_ytdlp_script()
     output_base = unique_path(DOWNLOADS, filename).with_suffix("").as_posix()
@@ -395,17 +493,23 @@ def build_yt_dlp_cmd(url: str, filename: str, quality: str) -> tuple[list[str], 
         "--no-playlist", "--newline",
         "-o", output_base + ".%(ext)s",
     ]
-    if is_social_media_url(url):
+    if use_browser_cookies(url):
         cmd.extend([
             "--cookies-from-browser", "chrome",
-            "--impersonate", "chrome-133:macos-15",
             "--retries", "3",
             "--fragment-retries", "3",
         ])
+        if is_social_media_url(url) and impersonate_available():
+            cmd.extend(["--impersonate", IMPERSONATE_TARGET])
     ffmpeg_dir = resolve_ffmpeg_dir()
     if ffmpeg_dir:
         cmd.extend(["--ffmpeg-location", ffmpeg_dir])
-    if quality == "best":
+    if is_generic_page_url(url) or is_direct_media_url(url):
+        if quality == "best":
+            cmd.extend(["-f", "best[ext=mp4]/best"])
+        else:
+            cmd.extend(["-f", "best[height<=720][ext=mp4]/best[height<=720]/best"])
+    elif quality == "best":
         cmd.extend([
             "-f", "bv*+ba/b",
             "--merge-output-format", "mp4",
@@ -550,7 +654,7 @@ def download_url_begin(data: dict[str, Any]) -> dict[str, Any]:
         return {"error": "No URL provided"}
     token = str(uuid.uuid4())
     filename = sanitize(data.get("filename") or "video.mp4")
-    referer = data.get("referer") or "https://www.erome.com/"
+    referer = data.get("referer") or ""
     dest = unique_path(DOWNLOADS, filename)
     state = {
         "token": token,
@@ -724,7 +828,7 @@ def handle(message: dict[str, Any]) -> dict[str, Any]:
             "hostVersion": HOST_VERSION,
             "ytdlp": str(ytdlp),
             "ytdlpExists": ytdlp.exists(),
-            "ffmpeg": str(Path(ffmpeg_dir) / "ffmpeg") if ffmpeg_dir else None,
+            "ffmpeg": str(Path(ffmpeg_dir) / FFMPEG_BINARY) if ffmpeg_dir else None,
             "ffmpegExists": ffmpeg_dir is not None,
         }
     if msg_type == "saveToDownloads":

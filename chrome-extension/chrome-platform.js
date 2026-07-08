@@ -30,7 +30,12 @@
     return cleaned || "download.mp4";
   }
 
+  function isServiceWorkerContext() {
+    return typeof importScripts === "function";
+  }
+
   function blobUrlSaveAvailable() {
+    if (isServiceWorkerContext()) return false;
     return typeof globalThis.URL !== "undefined"
       && typeof globalThis.URL.createObjectURL === "function";
   }

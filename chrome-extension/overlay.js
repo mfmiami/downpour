@@ -673,19 +673,31 @@
 
   function startYtDlp(pageUrl, mediaEl, ref, gen) {
     if (abortIfCancelled(mediaEl, ref, gen)) return;
-    const normalized = DownpourPlatforms.normalizeSocialPageUrl(platform, pageUrl);
+    const normalized = isGenericPlatform()
+      ? String(pageUrl || "").split("#")[0]
+      : DownpourPlatforms.normalizeSocialPageUrl(platform, pageUrl);
     ref.pageUrl = normalized;
     ref.cdnUrl = null;
     resolveTabId((tabId) => {
       if (!isCurrentSave(ref, gen)) return;
-      sendRuntimeMessage({
-        action: "downloadSocial",
-        platform,
-        url: normalized,
-        filename: DownpourPlatforms.makeSocialFilename(platform),
-        quality: "normal",
-        tabId
-      }, (resp) => {
+      const payload = isGenericPlatform()
+        ? {
+          action: "downloadPage",
+          url: normalized,
+          pageUrl: normalized,
+          filename: DownpourPlatforms.makeGenericFilename(normalized),
+          quality: "normal",
+          tabId
+        }
+        : {
+          action: "downloadSocial",
+          platform,
+          url: normalized,
+          filename: DownpourPlatforms.makeSocialFilename(platform),
+          quality: "normal",
+          tabId
+        };
+      sendRuntimeMessage(payload, (resp) => {
         if (!isCurrentSave(ref, gen)) return;
         if (!resp || !resp.ok) {
           failSave(mediaEl, ref, "Save failed", gen);
@@ -710,11 +722,14 @@
         filename,
         socialFetch,
         tabFetch,
-        tabId
+        tabId,
+        pageUrl: location.href.split("#")[0]
       }, (resp) => {
       if (!isCurrentSave(ref, gen)) return;
       if (!resp || !resp.ok) {
-        const pageUrl = isGenericPlatform() ? null : DownpourPlatforms.resolveSocialPageUrlForVideo(platform, mediaEl);
+        const pageUrl = isGenericPlatform()
+          ? DownpourPlatforms.pageDownloadUrl(location.href)
+          : DownpourPlatforms.resolveSocialPageUrlForVideo(platform, mediaEl);
         if (pageUrl && !ref.ytDlpTried) {
           ref.ytDlpTried = true;
           ref.progress = "Trying alternate…";
@@ -752,6 +767,14 @@
         } else {
           startDirectDownload(alt, DownpourPlatforms.makeGenericFilename(alt), mediaEl, ref);
         }
+        return true;
+      }
+      const pageUrl = DownpourPlatforms.pageDownloadUrl(location.href);
+      if (pageUrl && !ref.ytDlpTried) {
+        ref.ytDlpTried = true;
+        ref.progress = "Trying alternate…";
+        reflectMediaState(mediaEl);
+        startYtDlp(pageUrl, mediaEl, ref, ref.saveGen);
         return true;
       }
     }
@@ -812,7 +835,8 @@
         socialFetch,
         tabFetch,
         imageDownload,
-        tabId
+        tabId,
+        pageUrl: location.href.split("#")[0]
       }, (resp) => {
       if (!isCurrentSave(ref, gen)) return;
       if (!resp || !resp.ok) {
@@ -920,7 +944,14 @@
         picked = { type: "direct", url: eromeUrls[0], altUrls: eromeUrls.slice(1) };
       }
     }
-    if (!picked || !picked.url) throw new Error("no-url");
+    if (!picked || !picked.url) {
+      const pageUrl = DownpourPlatforms.pageDownloadUrl(location.href);
+      if (pageUrl) {
+        startYtDlp(pageUrl, mediaEl, ref, gen);
+        return;
+      }
+      throw new Error("no-url");
+    }
 
     ref.altUrls = picked.altUrls || [];
     ref.altIndex = 0;

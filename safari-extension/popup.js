@@ -5,6 +5,7 @@ const debugToggle = document.getElementById("debugToggle");
 const debugChevron = document.getElementById("debugChevron");
 let debugVisible = false;
 let logBuffer = "";
+const LOG_BUFFER_MAX = 400;
 
 function setDebugVisible(open) {
   debugVisible = open;
@@ -28,6 +29,9 @@ function log(msg, obj) {
     try { line += " " + (typeof obj === "string" ? obj : JSON.stringify(obj)); } catch (e) { line += " " + String(obj); }
   }
   logBuffer += line + "\n";
+  if (logBuffer.length > LOG_BUFFER_MAX * 120) {
+    logBuffer = logBuffer.slice(-LOG_BUFFER_MAX * 80);
+  }
   if (debugVisible && logEl) {
     logEl.textContent = logBuffer;
     logEl.scrollTop = logEl.scrollHeight;
@@ -100,6 +104,10 @@ function jobUiUrl(job) {
 function findUiUrlForJob(job) {
   const primary = jobUiUrl(job);
   if (buttonsByUrl.has(primary)) return primary;
+  if (job.watchUrl) {
+    const pageKey = `page:${job.watchUrl}`;
+    if (buttonsByUrl.has(pageKey)) return pageKey;
+  }
   for (const [url, id] of jobIdByUrl.entries()) {
     if (id === job.id) return url;
   }
@@ -112,7 +120,7 @@ function setBtnVariant(btn, variant) {
 }
 
 function applyJobState(job) {
-  if (job.message) log(`job ${job.id}:`, job.message);
+  if (debugVisible && job.message) log(`job ${job.id}:`, job.message);
   const uiUrl = findUiUrlForJob(job);
   jobIdByUrl.set(uiUrl, job.id);
   const btn = buttonsByUrl.get(uiUrl);
@@ -161,6 +169,12 @@ function applyJobState(job) {
     setBtnVariant(btn, "btn-warning");
     btn.disabled = false;
     if (qualitySelect) qualitySelect.disabled = false;
+    const progressEl = progressByUrl.get(uiUrl);
+    if (progressEl) {
+      progressEl.container.classList.add("active");
+      progressEl.label.textContent = shortJobMessage(job.message) || "Failed";
+    }
+    if (debugVisible) log("job error:", job.message || job.id);
   } else if (job.state === "cancelled") {
     setBtnVariant(btn, "btn-primary");
     btn.textContent = job.kind === "youtube" ? "Download"
@@ -187,6 +201,14 @@ chrome.runtime.onMessage.addListener((msg) => {
 document.addEventListener("DOMContentLoaded", async () => {
   if (debugToggle) {
     debugToggle.onclick = () => setDebugVisible(!debugVisible);
+  }
+
+  if (isChromeBrowser()) {
+    chrome.runtime.sendMessage({ action: "pingNative" }, (resp) => {
+      if (chrome.runtime.lastError || !resp || !resp.ok) {
+        log("native helper:", "not installed — tube-site downloads need install-native-host.sh");
+      }
+    });
   }
 
   const bmcBtn = document.getElementById("bmcBtn");
@@ -326,6 +348,165 @@ document.addEventListener("DOMContentLoaded", async () => {
       || /cdninstagram\.com|fbcdn\.net.*\.mp4/i.test(url);
   }
 
+  function isFragmentUrl(url) {
+    if (/\.m3u8|\.mpd/i.test(url)) return false;
+    return /\.m4s(\?|$)|\.ts(\?|$)/i.test(url);
+  }
+
+  function isThumbUrl(url) {
+    return /thumb-cdn|\/thumbs?\//i.test(url) && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(url);
+  }
+
+  function videoListScore(url) {
+    let score = 0;
+    if (/\.m3u8/i.test(url)) score += 280;
+    if (/video_1440p|video_1080p/i.test(url)) score += 200;
+    if (/video_720p/i.test(url)) score += 160;
+    if (/video_480p|video_360p/i.test(url)) score += 90;
+    if (/\.mp4/i.test(url)) score += 80;
+    if (/xvideos-cdn\.com/i.test(url)) score += 60;
+    return score;
+  }
+
+  function isChromeBrowser() {
+    try {
+      return (chrome.runtime.getManifest().permissions || []).includes("scripting");
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function shouldPreferPageDownload(tabUrl, detectedCount) {
+    return isChromeBrowser()
+      && DownpourPlatforms.shouldPreferChromePageDownload(tabUrl, detectedCount);
+  }
+
+  function pageDownloadKey(tabUrl) {
+    return `page:${tabUrl}`;
+  }
+
+  function queueDownload(uiUrl, opts, btn, cancelBtn, qualitySelect) {
+    btn.disabled = true;
+    if (qualitySelect) qualitySelect.disabled = true;
+    btn.textContent = "Starting…";
+    log("start:", `${opts.action} ${opts.url}`);
+    chrome.runtime.sendMessage(opts, (resp) => {
+      if (chrome.runtime.lastError) {
+        log("start failed:", chrome.runtime.lastError.message);
+        btn.textContent = "Retry";
+        setBtnVariant(btn, "btn-warning");
+        btn.disabled = false;
+        if (qualitySelect) qualitySelect.disabled = false;
+        const progressEl = progressByUrl.get(uiUrl);
+        if (progressEl) {
+          progressEl.container.classList.add("active");
+          progressEl.label.textContent = chrome.runtime.lastError.message;
+        }
+        return;
+      }
+      log("queued job:", resp && resp.jobId);
+      if (resp && resp.jobId) jobIdByUrl.set(uiUrl, resp.jobId);
+      btn.textContent = "Downloading…";
+      if (cancelBtn) cancelBtn.style.display = "inline-flex";
+      const progressEl = progressByUrl.get(uiUrl);
+      if (progressEl) {
+        progressEl.container.classList.add("active");
+        progressEl.bar.classList.add("indeterminate");
+        progressEl.bar.style.width = "";
+        progressEl.label.textContent = "Queued…";
+      }
+      startJobPoll();
+    });
+  }
+
+  function appendPageDownloadCard(tabUrl) {
+    const pageUrl = DownpourPlatforms.pageDownloadUrl(tabUrl) || tabUrl;
+    const key = pageDownloadKey(pageUrl);
+    const li = document.createElement("li");
+    li.className = "video-item page-download-item";
+
+    const cardTop = document.createElement("div");
+    cardTop.className = "card-top";
+    const badge = document.createElement("span");
+    badge.className = "badge badge-file";
+    badge.textContent = "This page";
+    cardTop.appendChild(badge);
+
+    const labelDiv = document.createElement("div");
+    labelDiv.className = "video-title";
+    const title = (tab && tab.title || "").trim()
+      .replace(/\s*[-–—|]\s*XVIDEOS\.COM\s*$/i, "")
+      .replace(/\s*[-–—|]\s*xHamster\s*$/i, "")
+      .replace(/\s*[-–—|]\s*SpankBang\s*$/i, "")
+      .trim();
+    labelDiv.textContent = title || "Download this video";
+    labelDiv.title = tabUrl;
+
+    const hintDiv = document.createElement("div");
+    hintDiv.className = "video-url";
+    hintDiv.style.marginTop = "4px";
+    hintDiv.textContent = "Uses yt-dlp on this page URL. If that fails, try a Direct or HLS link below.";
+
+    const progressWrap = document.createElement("div");
+    progressWrap.className = "download-progress";
+    const progressTrack = document.createElement("div");
+    progressTrack.className = "download-progress-track";
+    const progressBar = document.createElement("div");
+    progressBar.className = "download-progress-bar";
+    progressTrack.appendChild(progressBar);
+    const progressLabel = document.createElement("div");
+    progressLabel.className = "download-progress-label";
+    progressWrap.appendChild(progressTrack);
+    progressWrap.appendChild(progressLabel);
+    progressByUrl.set(key, { container: progressWrap, bar: progressBar, label: progressLabel });
+
+    const cardActions = document.createElement("div");
+    cardActions.className = "card-actions";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-primary";
+    btn.textContent = "Download";
+    btn.title = "Download via yt-dlp using this page URL (recommended on Chrome)";
+    buttonsByUrl.set(key, btn);
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "btn btn-danger";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.display = "none";
+    cancelButtonsByUrl.set(key, cancelBtn);
+    cancelBtn.onclick = () => {
+      const id = jobIdByUrl.get(key);
+      if (id == null) return;
+      cancelBtn.textContent = "Cancelling…";
+      cancelBtn.disabled = true;
+      chrome.runtime.sendMessage({ action: "cancelJob", jobId: id }, () => {
+        cancelBtn.textContent = "Cancel";
+        cancelBtn.disabled = false;
+      });
+    };
+
+    btn.onclick = () => {
+      queueDownload(key, {
+        action: "downloadPage",
+        url: pageUrl,
+        pageUrl: pageUrl,
+        filename: `${pageBaseName()}.mp4`,
+        tabId: tab && tab.id,
+        quality: "normal"
+      }, btn, cancelBtn, null);
+    };
+
+    cardActions.appendChild(cancelBtn);
+    cardActions.appendChild(btn);
+    li.appendChild(cardTop);
+    li.appendChild(labelDiv);
+    li.appendChild(hintDiv);
+    li.appendChild(progressWrap);
+    li.appendChild(cardActions);
+    videoList.insertBefore(li, videoList.firstChild);
+  }
+
   function youtubeVideoTitle() {
     let title = (tab && tab.title || "").trim();
     return title.replace(/\s*[-–—|]\s*YouTube(\s+Music)?\s*$/i, "").trim() || null;
@@ -362,13 +543,17 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    let list = videos.slice().filter((url) => !isGoogleVideoCdn(url) && !isSocialCdn(url) && !isSocialPageUrl(url));
+    let list = videos.slice().filter((url) => !isGoogleVideoCdn(url) && !isSocialCdn(url) && !isSocialPageUrl(url)
+      && !isFragmentUrl(url) && !isThumbUrl(url));
+    list.sort((a, b) => videoListScore(b) - videoListScore(a));
     if (youtubePageUrl) {
       list = list.filter((url) => !/^(blob:|data:|mediasource:)/i.test(url));
       if (!list.includes(youtubePageUrl)) list.unshift(youtubePageUrl);
     }
 
-    if (list.length === 0) {
+    const preferPageDownload = tabUrl && shouldPreferPageDownload(tabUrl, list.length);
+
+    if (list.length === 0 && !preferPageDownload) {
       videoContainer.style.display = "block";
       videoList.innerHTML = "";
       setEmptyState("No videos yet", "Play a video on this page, then reopen Downpour to download it.");
@@ -376,6 +561,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     videoContainer.style.display = "none";
     videoList.innerHTML = "";
+
+    if (preferPageDownload) {
+      appendPageDownloadCard(tabUrl);
+    }
 
     list.forEach((url) => {
       const li = document.createElement("li");
@@ -487,35 +676,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       btn.onclick = () => {
         if (isUnsupported) return;
-        btn.disabled = true;
-        if (qualitySelect) qualitySelect.disabled = true;
-        btn.textContent = "Starting…";
         const action = isYoutube ? "downloadYoutube" : isStream ? "downloadStream" : "downloadDirect";
         const quality = qualitySelect ? qualitySelect.value : null;
         const qualityTag = quality === "best" ? "_best" : quality === "normal" ? "_720p" : "";
         const filename = (isYoutube || isStream) ? `${pageBaseName()}${qualityTag}.mp4` : directFilename(url);
-        log("start:", action + " " + url + (quality ? " (" + quality + ")" : ""));
-        chrome.runtime.sendMessage({ action, url, filename, tabId: tab && tab.id, quality }, (resp) => {
-          if (chrome.runtime.lastError) {
-            log("start failed:", chrome.runtime.lastError.message);
-            btn.textContent = "Retry";
-            setBtnVariant(btn, "btn-warning");
-            btn.disabled = false;
-            if (qualitySelect) qualitySelect.disabled = false;
-            return;
-          }
-          log("queued job:", resp && resp.jobId);
-          if (resp && resp.jobId) jobIdByUrl.set(url, resp.jobId);
-          btn.textContent = "Downloading…";
-          cancelBtn.style.display = "inline-flex";
-          const progressEl = progressByUrl.get(url);
-          if (progressEl) {
-            progressEl.container.classList.add("active");
-            progressEl.bar.classList.add("indeterminate");
-            progressEl.bar.style.width = "";
-            progressEl.label.textContent = "Queued…";
-          }
-        });
+        const pageUrl = tabUrl || (tab && tab.url) || "";
+        queueDownload(url, {
+          action,
+          url,
+          filename,
+          tabId: tab && tab.id,
+          quality,
+          pageUrl: pageUrl || undefined
+        }, btn, cancelBtn, qualitySelect);
       };
 
       cardActions.appendChild(cancelBtn);

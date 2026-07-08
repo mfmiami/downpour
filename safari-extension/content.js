@@ -411,6 +411,9 @@ function tabFetchHeaders(url) {
   } else if (typeof DownpourPlatforms !== "undefined" && DownpourPlatforms.isEromeCdn(url)) {
     headers.Referer = DownpourPlatforms.eromeRefererForUrl(url, location.href);
     headers.Origin = "https://www.erome.com";
+  } else if (/xvideos-cdn\.com/i.test(url)) {
+    headers.Referer = location.href.split("#")[0];
+    headers.Origin = "https://www.xvideos.com";
   } else {
     headers.Referer = location.href;
   }
@@ -422,7 +425,8 @@ function tabFetchUsesCredentials(url) {
     || DownpourPlatforms.isTikTokCdnHost(url)
     || DownpourPlatforms.isEromeCdn(url)
     || /\.m3u8(\?|$)|\.mpd(\?|$)/i.test(url)
-    || /\/hls\/|\/manifest\/|master\.m3u8|index\.m3u8/i.test(url);
+    || /\/hls\/|\/manifest\/|master\.m3u8|index\.m3u8/i.test(url)
+    || /\.(mp4|webm|m4v|mov)(\?|$)/i.test(url);
 }
 
 function needsPageContextFetch(url) {
@@ -483,6 +487,65 @@ async function pageProxyFetch(url, mode) {
       credentials: tabFetchUsesCredentials(url) ? "include" : "omit",
       headers: tabFetchHeaders(url)
     }, "*");
+  });
+}
+
+async function streamTabFetchToBackground({ url, jobId, filename }) {
+  await ensurePageFetchBridge();
+  const port = chrome.runtime.connect({ name: "downpourStream" });
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let fetchStarted = false;
+    let onWindowMessage = null;
+    const finish = (err) => {
+      if (settled) return;
+      settled = true;
+      if (onWindowMessage) window.removeEventListener("message", onWindowMessage);
+      clearTimeout(timer);
+      try { port.disconnect(); } catch (e) {}
+      if (err) reject(err);
+      else resolve();
+    };
+
+    const onPort = (msg) => {
+      if (msg.jobId !== jobId) return;
+      if (msg.type === "ready" && !fetchStarted) {
+        fetchStarted = true;
+        const id = `pfs_${++pageFetchSeq}_${Date.now()}`;
+        onWindowMessage = (event) => {
+          if (event.source !== window || !event.data || event.data.id !== id) return;
+          const data = event.data;
+          if (data.type === "VSD_PAGE_FETCH_STREAM_META") {
+            port.postMessage({ type: "streamMeta", jobId, total: data.total || 0 });
+          } else if (data.type === "VSD_PAGE_FETCH_STREAM_CHUNK") {
+            port.postMessage({ type: "chunk", jobId, data: data.data, bytes: data.bytes || 0 });
+          } else if (data.type === "VSD_PAGE_FETCH_STREAM_DONE") {
+            if (data.error) {
+              port.postMessage({ type: "error", jobId, error: data.error });
+              finish(new Error(data.error));
+            } else {
+              port.postMessage({ type: "end", jobId, filename });
+            }
+          }
+        };
+        window.addEventListener("message", onWindowMessage);
+        window.postMessage({
+          type: "VSD_PAGE_FETCH_STREAM_REQUEST",
+          id,
+          url,
+          credentials: tabFetchUsesCredentials(url) ? "include" : "omit",
+          headers: tabFetchHeaders(url)
+        }, "*");
+      } else if (msg.type === "saved") {
+        finish();
+      } else if (msg.type === "failed") {
+        finish(new Error(msg.error || "stream save failed"));
+      }
+    };
+    port.onMessage.addListener(onPort);
+
+    const timer = setTimeout(() => finish(new Error("page stream timeout")), 3600000);
+    port.postMessage({ type: "streamBegin", jobId, filename });
   });
 }
 
@@ -590,6 +653,12 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.action === "tabFetch") {
     tabProxyFetch(request.url, request.mode || "bytes")
       .then((result) => sendResponse({ ok: true, ...result }))
+      .catch((e) => sendResponse({ ok: false, error: e.message || String(e) }));
+    return true;
+  }
+  if (request.action === "tabStreamFetch") {
+    streamTabFetchToBackground(request)
+      .then(() => sendResponse({ ok: true }))
       .catch((e) => sendResponse({ ok: false, error: e.message || String(e) }));
     return true;
   }

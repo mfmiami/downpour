@@ -1,79 +1,166 @@
 # Downpour — Chrome Extension
 
-Chrome port of the Downpour video downloader. Shares the same content scripts, overlay, and popup as [`../safari-extension/`](../safari-extension/).
+Chromium port of Downpour. Shared UI and detection live in [`../safari-extension/`](../safari-extension/); Chrome-specific wiring is in `chrome-platform.js`, `background-entry.js`, and `native-host/`.
 
-## Quick start (unpacked)
+**Works on:** macOS, Windows, and Linux Chrome/Chromium (extension UI). **Full downloads** need the native helper on each OS.
 
-1. Sync shared source from `safari-extension/`:
+---
 
-   ```bash
-   ./scripts/sync-chrome.sh
-   ```
+## Quick install
 
-2. Open Chrome → `chrome://extensions`
-3. Enable **Developer mode**
-4. Click **Load unpacked** → select this `chrome-extension/` folder
-5. Pin **Downpour** and allow it on the sites you use
-
-## What works out of the box
-
-| Feature | Chrome (no native host) | With native host |
-|---------|-------------------------|------------------|
-| Generic / erome direct video | ✓ via page fetch + `chrome.downloads` | ✓ |
-| Instagram / TikTok / X overlay | ✓ (hover save button on video) | ✓ |
-| Generic site video overlay | ✓ | ✓ |
-| Popup stream / direct downloads | ✓ | ✓ |
-| YouTube yt-dlp (720p / best) | ✗ | ✓ |
-| Large chunked saves | ✓ via `chrome.downloads` | ✓ |
-
-**Erome:** uses the native helper when installed (album Referer from the open tab); falls back to in-page fetch.
-
-**Saves:** files go to your browser Downloads folder via the Chrome Downloads API.
-
-## Optional: native host (YouTube + yt-dlp)
-
-For YouTube and other yt-dlp jobs, install the native messaging helper (macOS):
+### Extension only
 
 ```bash
-# Load the extension first, copy its ID from chrome://extensions
+cd downpour
+./scripts/sync-chrome.sh
+```
+
+1. Open **`chrome://extensions`**
+2. Enable **Developer mode**
+3. **Load unpacked** → select this **`chrome-extension/`** folder
+4. Pin **Downpour**
+
+Or on macOS, run **`scripts/install-chrome-extension.sh`** (copies the extension to `~/Library/Application Support/Downpour/chrome-extension/` and opens Finder).
+
+### Extension + native helper (recommended)
+
+The native helper is **required** for:
+
+- YouTube (yt-dlp)
+- Tube sites (XVideos, Spankbang, etc.) via **This page**
+- Reliable **Direct** / **HLS** CDN links (native HTTP download with Referer)
+- Large files (streamed save without loading the whole video into the extension)
+
+#### macOS
+
+```bash
+./scripts/bootstrap-chrome-ffmpeg.sh          # once; ffmpeg not stored in git
 ./native-host/install-native-host.sh YOUR_EXTENSION_ID
 ```
 
-Requires Python 3 and `yt-dlp.py` at the repo root (same script bundled in the Safari app).
+Find **YOUR_EXTENSION_ID** on `chrome://extensions` (32 characters).
 
-**ffmpeg** (for YouTube best-quality merges) is bundled like the Safari app — not stored in git (~63MB). After clone:
+Install puts files in:
 
-```bash
-./scripts/bootstrap-chrome-ffmpeg.sh
-./native-host/install-native-host.sh YOUR_EXTENSION_ID
+- `~/Library/Application Support/Downpour/` — yt-dlp, ffmpeg, native host
+- `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.dtek.downpour.json`
+
+**Quit Chrome completely**, then reopen.
+
+#### Windows
+
+Prerequisites:
+
+- [Python 3](https://www.python.org/downloads/) on PATH
+- Optional: `winget install Gyan.FFmpeg` (or place `ffmpeg.exe` in `%APPDATA%\Downpour\ffmpeg\`)
+
+```powershell
+cd downpour
+.\native-host\install-native-host.ps1 -ExtensionId YOUR_EXTENSION_ID
 ```
 
-If bootstrap cannot find a binary, install falls back to system `ffmpeg` (`brew install ffmpeg`).
+Install puts files in:
+
+- `%APPDATA%\Downpour\`
+- Registry: `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.dtek.downpour`
+
+**Quit Chrome completely**, then reopen.
+
+#### Linux
+
+`downpour_host.py` supports Linux paths; no automated installer yet. Manually install:
+
+1. Copy `native-host/downpour_host.py` and repo-root `yt-dlp.py` to `~/.config/downpour/`
+2. Create `~/.config/google-chrome/NativeMessagingHosts/com.dtek.downpour.json` from `com.dtek.downpour.json` (set `path` to `python3 …/downpour_host.py`, set your extension ID in `allowed_origins`)
+
+---
+
+## Using Downpour
+
+1. Open a page with a video and **play it** briefly
+2. Click the Downpour toolbar icon
+3. Choose:
+   - **This page** — yt-dlp extracts from the page URL (needs native helper)
+   - **Direct** / **HLS** — download a captured CDN URL (needs native helper for large/restricted files on Chrome)
+4. Or hover the video and click the **Save** overlay button
+
+**Popup developer log:** expand **Show developer log** at the bottom of the popup for job messages (`starting yt-dlp…`, `downloading 42%…`, errors).
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| No **This page** card | Play the video; reload the extension |
+| `starting yt-dlp…` then error | Site may not be supported by yt-dlp — try **Direct** / **HLS** instead |
+| `downloading via page…` forever | Update to latest version; install native helper; try **Direct** link |
+| `native messaging host not found` | Re-run install script with correct extension ID; quit Chrome fully |
+| YouTube audio only | Run `bootstrap-chrome-ffmpeg.sh` or install system ffmpeg |
+| Works in Safari, not Chrome | Install native helper — Chrome does not use the Safari app |
+
+Verify the helper:
+
+```bash
+# macOS — after install
+python3 ~/Library/Application\ Support/Downpour/native-host/downpour_host.py
+# (will wait for stdin; Ctrl+C to exit — means Python can run the host)
+```
+
+On `chrome://extensions`, reload Downpour after any native-host reinstall.
+
+---
+
+## Feature matrix
+
+| Feature | Extension only | + Native helper |
+|---------|----------------|-----------------|
+| Instagram / TikTok / X overlay | ✓ | ✓ |
+| Generic site overlay | ✓ | ✓ |
+| Popup lists detected URLs | ✓ | ✓ |
+| Small direct saves | ✓ (`chrome.downloads`) | ✓ |
+| Tube **This page** (yt-dlp) | ✗ | ✓ |
+| YouTube 720p / Best | ✗ | ✓ |
+| Large CDN / cross-origin direct | Unreliable | ✓ |
+| HLS via yt-dlp | ✗ | ✓ |
+
+---
 
 ## Development
 
-After editing shared files in `safari-extension/` (`background.js`, `overlay.js`, etc.):
+Edit shared files in `safari-extension/`, then:
 
 ```bash
 ./scripts/sync-chrome.sh
 ```
 
-Then click **Reload** on `chrome://extensions`.
+Reload on `chrome://extensions`.
 
-Chrome-only files (do not overwrite when syncing):
+**Do not overwrite when syncing** (Chrome-only):
 
 - `manifest.json`
 - `background-entry.js`
 - `chrome-platform.js`
 - `native-host/`
 
-## Platform differences
+`background-entry.js` loads: `platforms.js` → `chrome-platform.js` → `mux.min.js` → `background.js`.
 
-| Safari | Chrome |
-|--------|--------|
-| Native app writes to `~/Downloads` | `chrome.downloads` API |
-| Erome via `URLSession` + Referer | Page-context fetch + downloads API |
-| yt-dlp via host app | yt-dlp via optional native host |
-| DMG installer | Load unpacked / Web Store |
+### Native host layout
 
-Shared logic lives in `safari-extension/`; `chrome-platform.js` sets `globalThis.__downpour*` hooks before `background.js` loads.
+| File | Role |
+|------|------|
+| `downpour_host.py` | Native messaging: save files, yt-dlp jobs, URL downloads |
+| `com.dtek.downpour.json` | Manifest template |
+| `install-native-host.sh` | macOS installer |
+| `install-native-host.ps1` | Windows installer |
+
+Host version is in `HOST_VERSION` inside `downpour_host.py`.
+
+---
+
+## Platform notes
+
+| | Safari app | Chrome |
+|--|------------|--------|
+| Saves | Native app → `~/Downloads` | Native helper or `chrome.downloads` |
+| yt-dlp | Bundled in app | `yt-dlp.py` + native host |
+| Cookies for yt-dlp | Safari | Chrome (`--cookies-from-browser chrome`) |
+| Installer | DMG | Git clone + load unpacked |

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Install the Downpour Chrome native messaging host on macOS.
+# Windows: use install-native-host.ps1
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
